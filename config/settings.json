@@ -1,7 +1,7 @@
 ﻿{
     "SqlInstance": "localhost",
     "Database": "AdventureWorks2022",
-    "ReportPath": "C:\\DBAToolsProyecto1\\reports",
+    "ReportPath": "C:\\Users\\santiago.guevara\\dbatools-AW2022-v2\\reports",
     "TopQueriesLimit": 10,
     "BackupDaysHistory": 7,
     "FragmentationThresholds": {
@@ -29,5 +29,60 @@
         "WarningSpacePercent": 80,
         "MaxFragmentationRebuild": 30,
         "MaxFragmentationReorganize": 10
+    },
+    "NewFeatures": {
+        "VersionCheck": {
+            "Enabled": true,
+            "CheckForUpdates": true,
+            "NotifyOnOutdated": true
+        },
+        "DailyDiskReport": {
+            "Enabled": true,
+            "ScheduleTime": "06:00",
+            "CheckMountPoints": true,
+            "NotifyOnCritical": true,
+            "NotifyOnWarning": true
+        },
+        "BackupJobsMonitor": {
+            "Enabled": true,
+            "CheckIntervalHours": 24,
+            "NotifyOnFailure": true,
+            "MonitorAllServers": true
+        },
+        "Notifications": {
+            "Enabled": true,
+            "LogPath": "C:\\Users\\santiago.guevara\\dbatools-AW2022-v2\\reports\\notifications.log",
+            "MaxLogSizeMB": 10,
+            "RetainLogDays": 30
+        }
+    },
+    "Servers": [
+        "localhost"
+    ],
+    "BackupJobNames": [
+        "Backup*",
+        "*Backup*",
+        "DatabaseBackup*",
+        "*Full Backup*",
+        "*Differential Backup*",
+        "*Log Backup*"
+    ],
+    "ReportSettings": {
+        "GenerateHTML": true,
+        "GenerateJSON": true,
+        "IncludeCharts": true,
+        "CompactMode": false,
+        "AutoOpenReport": false
+    },
+    "DiskSpaceSettings": {
+        "CheckAllDrives": true,
+        "IncludeMountPoints": true,
+        "MinimumFreeGB": 5,
+        "CriticalFreeGB": 1
+    },
+    "VersionCompliance": {
+        "CheckBuildVersion": true,
+        "NotifyIfPatchesBehind": 1,
+        "AutoCheckKB": true
     }
 }

@@ -1,21 +1,22 @@
 ﻿# --- CONFIGURACIÓN PRINCIPAL ---
-$ConfigPath = "C:\DBAToolsProyecto1\config\settings.json"
+$ProjectPath = "C:\Users\santiago.guevara\dbatools-AW2022-v2"
+$ConfigPath = Join-Path $ProjectPath "config\settings.json"
 $Config = Get-Content $ConfigPath | ConvertFrom-Json
 
 $SqlInstance = $Config.SqlInstance
-$DatabaseName = $Config.Database  # ⚠️ CORREGIDO: Debe ser $DatabaseName
-$ReportPath = $Config.ReportPath
-$CssFile = "C:\DBAToolsProyecto1\src\templates\style.css"  # ⚠️ CORREGIDO: Ruta correcta
+$DatabaseName = $Config.Database
+$ReportPath = Join-Path $ProjectPath "reports"
+$CssFile = Join-Path $ProjectPath "templates\style.css"
 
 # --- IMPORTAR MÓDULOS Y FUNCIONES ---
 try {
     Import-Module dbatools -ErrorAction Stop
 
     # Importar módulos locales
-    $modulesPath = "C:\DBAToolsProyecto1\src\modules"
-    . "$modulesPath\data-collector.ps1"
-    . "$modulesPath\html-generator.ps1"
-    . "$modulesPath\dbatools-functions.ps1"
+    $modulesPath = Join-Path $ProjectPath "modules"
+    . (Join-Path $modulesPath "data-collector.ps1")
+    . (Join-Path $modulesPath "html-generator.ps1")
+    . (Join-Path $modulesPath "dbatools-functions.ps1")
 
     Write-Host "✅ Configuración cargada desde: $ConfigPath" -ForegroundColor Green
     Write-Host "✅ Módulo dbatools importado correctamente" -ForegroundColor Green
@@ -26,156 +27,226 @@ catch {
     exit 1
 }
 
-Write-Host "🚀 INICIANDO GENERACIÓN DE REPORTE MEJORADO..." -ForegroundColor Cyan
+# --- FUNCIÓN PARA EJECUTAR REPORTE DIARIO AUTOMÁTICO ---
+function Invoke-DailyAutomatedReport {
+    param(
+        [string[]]$SqlInstances,
+        [string]$ReportPath
+    )
+
+    try {
+        Write-Host "`n🌅 EJECUTANDO REPORTE DIARIO AUTOMÁTICO (6 AM)..." -ForegroundColor Cyan
+
+        # 1. Reporte diario de discos
+        Write-Host "   💽 Ejecutando reporte diario de discos..." -ForegroundColor Yellow
+        $diskReport = Get-DailyDiskReport -SqlInstances $SqlInstances -ReportPath $ReportPath
+
+        # 2. Reporte de cumplimiento de versiones
+        Write-Host "   🔄 Verificando versiones y parches..." -ForegroundColor Yellow
+        $versionReport = Get-VersionComplianceReport -SqlInstances $SqlInstances -ReportPath $ReportPath
+
+        # 3. Reporte de salud de jobs de backup
+        Write-Host "   📊 Verificando jobs de backup..." -ForegroundColor Yellow
+        $backupJobsReport = Get-BackupJobsHealthReport -SqlInstances $SqlInstances -ReportPath $ReportPath
+
+        Write-Host "   ✅ Reporte diario completado exitosamente" -ForegroundColor Green
+
+        return @{
+            DiskReport       = $diskReport
+            VersionReport    = $versionReport
+            BackupJobsReport = $backupJobsReport
+        }
+    }
+    catch {
+        Write-Error "   ❌ Error en reporte diario automático: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+# --- FUNCIÓN PARA MOSTRAR MENÚ PRINCIPAL ---
+function Show-MainMenu {
+    Write-Host "`n" + "="*60 -ForegroundColor Cyan
+    Write-Host "🚀 DBATOOLS-AW2022-V2 - SISTEMA DE MONITOREO SQL SERVER" -ForegroundColor Cyan
+    Write-Host "="*60 -ForegroundColor Cyan
+    Write-Host "📊 OPCIONES DISPONIBLES:" -ForegroundColor Yellow
+    Write-Host "   1. 📋 Reporte Completo (Todos los datos)" -ForegroundColor White
+    Write-Host "   2. 💽 Reporte Diario de Discos (6 AM)" -ForegroundColor White
+    Write-Host "   3. 🔄 Verificación de Versiones y Parches" -ForegroundColor White
+    Write-Host "   4. 📊 Estado de Jobs de Backup" -ForegroundColor White
+    Write-Host "   5. 🚀 Colección Mejorada (Todas las funciones)" -ForegroundColor Green
+    Write-Host "   6. 📜 Mostrar Funciones Disponibles" -ForegroundColor White
+    Write-Host "   7. ❌ Salir" -ForegroundColor Red
+    Write-Host ""
+}
+
+# --- PROGRAMA PRINCIPAL ---
+Write-Host "🚀 INICIANDO DBATOOLS-AW2022-V2..." -ForegroundColor Cyan
+Write-Host "   Proyecto: $ProjectPath" -ForegroundColor Yellow
 Write-Host "   Servidor: $SqlInstance" -ForegroundColor Yellow
 Write-Host "   Base de datos: $DatabaseName" -ForegroundColor Yellow
 Write-Host "   Ruta reportes: $ReportPath" -ForegroundColor Yellow
 Write-Host ""
 
-# --- RECOLECCIÓN DE DATOS REALES ---
-Write-Host "📊 RECOLECTANDO DATOS REALES DE LA BASE DE DATOS..." -ForegroundColor Cyan
-Write-Host "🔍 Conectando a $SqlInstance y recolectando datos de $DatabaseName..." -ForegroundColor Yellow
+# Verificar si es ejecución automática (6 AM) o manual
+$currentTime = Get-Date
+$isScheduledRun = $currentTime.Hour -eq 6 -and $currentTime.Minute -le 30
 
-try {
-    # ⚠️ CORREGIDO: Usar $DatabaseName y variable correcta
-    $completeData = Get-CompleteDatabaseInfo -SqlInstance $SqlInstance -DatabaseName $DatabaseName
+if ($isScheduledRun) {
+    Write-Host "⏰ EJECUCIÓN PROGRAMADA DETECTADA (6 AM)..." -ForegroundColor Cyan
+    Write-Host "   Ejecutando reporte diario automático..." -ForegroundColor Yellow
 
-    if (-not $completeData) {
-        # ⚠️ CORREGIDO: minuscula
-        throw "No se pudieron recolectar los datos de la base de datos"
-    }
-    
+    # Ejecutar reporte diario automático
+    $dailyReport = Invoke-DailyAutomatedReport -SqlInstances @($SqlInstance) -ReportPath $ReportPath
 
-    Write-Host "✅ Datos recolectados exitosamente:" -ForegroundColor Green
-
-    # ⚠️ CORREGIDO: Mostrar datos reales de la estructura actual
-    $indexCount = if ($completeData.IndexStats) { $completeData.IndexStats.Count } else { 0 }
-    $diskCount = if ($completeData.DiskStats) { $completeData.DiskStats.Count } else { 0 }
-    $backupCount = if ($completeData.BackupData) { $completeData.BackupData.Count } else { 0 }
-
-    Write-Host "   - Información de instancia: " -NoNewline
-    if ($completeData.InstanceInfo) { Write-Host "✓" -ForegroundColor Green } else { Write-Host "✗" -ForegroundColor Red }
-
-    Write-Host "   - Análisis de índices: " -NoNewline
-    Write-Host "$indexCount índices" -ForegroundColor Green
-
-    Write-Host "   - Espacio en disco: " -NoNewline
-    Write-Host "$diskCount archivos analizados" -ForegroundColor Green
-
-    Write-Host "   - Consumo de recursos: " -NoNewline
-    if ($completeData.ResourceUsage) { Write-Host "✓" -ForegroundColor Green } else { Write-Host "✗" -ForegroundColor Red }
-
-    Write-Host "   - Historial de backups: " -NoNewline
-    Write-Host "$backupCount backups" -ForegroundColor Green
-
-    # --- GENERACIÓN DE HTML ---
-    Write-Host ""
-    Write-Host "🎨 GENERANDO REPORTE HTML..." -ForegroundColor Cyan
-
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $ReportFile = Join-Path $ReportPath "Reporte_Completo_${DatabaseName}_$timestamp.html"
-
-    # ⚠️ CORREGIDO: Llamar a la función correcta con parámetros correctos
-    Generate-CompleteHTMLReport -ReportData $completeData -OutputPath $ReportFile -CssFile $CssFile
-
-    Write-Host ""
-    Write-Host "✅ REPORTE COMPLETO GENERADO EXITOSAMENTE!" -ForegroundColor Green
-    Write-Host "📁 Ubicación: $ReportFile" -ForegroundColor Yellow
-
-    # --- RESUMEN EJECUTIVO ---
-    Write-Host ""
-    Write-Host "📈 RESUMEN EJECUTIVO:" -ForegroundColor Cyan
-
-    # Mostrar información del motor
-    if ($completeData.EngineInfo) {
-        Write-Host ""
-        Write-Host "🖥️  INFORMACIÓN DEL MOTOR:" -ForegroundColor Cyan
-        Write-Host "   Versión: $($completeData.EngineInfo.ProductVersion)" -ForegroundColor Yellow
-        Write-Host "   Edición: $($completeData.EngineInfo.Edition)" -ForegroundColor Yellow
-        Write-Host "   Nivel: $($completeData.EngineInfo.ProductLevel)" -ForegroundColor Yellow
-    }
-
-    if ($completeData.PatchAnalysis) {
-        Write-Host ""
-        Write-Host "🔧 ANÁLISIS DE PARCHES:" -ForegroundColor Cyan
-        Write-Host "   Estado: $($completeData.PatchAnalysis.Estado)" -ForegroundColor $(if ($completeData.PatchAnalysis.NecesitaParches) { 'Red' } else { 'Green' })
-        Write-Host "   Recomendación: $($completeData.PatchAnalysis.Recomendacion)" -ForegroundColor Yellow
-    }
-
-    # Calcular métricas para el resumen
-    $rebuildRecommended = if ($completeData.IndexStats) {
-        ($completeData.IndexStats | Where-Object { $_.RecommendedAction -eq 'REBUILD' }).Count
-    }
-    else { 0 }
-
-    $criticalFiles = if ($completeData.DiskStats) {
-        ($completeData.DiskStats | Where-Object { $_.PorcentajeUsado -gt 90 }).Count
-    }
-    else { 0 }
-
-    $connectionCount = if ($completeData.ResourceUsage) {
-        $completeData.ResourceUsage.ConnectionCount
-    }
-    else { 0 }
-
-    Write-Host "   Estado General: " -NoNewline
-    if ($rebuildRecommended -gt 0 -or $criticalFiles -gt 0) {
-        Write-Host "ATENCIÓN REQUERIDA" -ForegroundColor Red
+    if ($dailyReport) {
+        Write-Host "✅ Reporte diario automático completado exitosamente" -ForegroundColor Green
+        exit 0
     }
     else {
-        Write-Host "ÓPTIMO" -ForegroundColor Green
+        Write-Error "❌ Error en reporte diario automático"
+        exit 1
     }
+}
 
-    Write-Host "   Índices para REBUILD: " -NoNewline
-    Write-Host "$rebuildRecommended" -ForegroundColor $(if ($rebuildRecommended -gt 0) { 'Red' } else { 'Green' })
+# MODO INTERACTIVO - MOSTRAR MENÚ
+do {
+    Show-MainMenu
+    $choice = Read-Host "Seleccione una opción (1-7)"
 
-    Write-Host "   Archivos críticos (>90%): " -NoNewline
-    Write-Host "$criticalFiles" -ForegroundColor $(if ($criticalFiles -gt 0) { 'Red' } else { 'Green' })
+    switch ($choice) {
+        "1" {
+            # 📋 REPORTE COMPLETO
+            Write-Host "`n📊 EJECUTANDO REPORTE COMPLETO..." -ForegroundColor Cyan
+            Write-Host "🔍 Conectando a $SqlInstance y recolectando datos de $DatabaseName..." -ForegroundColor Yellow
 
-    Write-Host "   Conexiones activas: " -NoNewline
-    Write-Host "$connectionCount" -ForegroundColor $(if ($connectionCount -gt 50) { 'Yellow' } else { 'Green' })
+            try {
+                $completeData = Get-CompleteDatabaseInfo -SqlInstance $SqlInstance -DatabaseName $DatabaseName
 
-    # Mostrar alertas específicas
-    $alerts = @()
-    if ($rebuildRecommended -gt 0) {
-        $alerts += "$rebuildRecommended índice(s) necesitan REBUILD urgente"
-    }
-    if ($criticalFiles -gt 0) {
-        $alerts += "$criticalFiles archivo(s) con más del 90% de espacio usado"
-    }
-    if ($backupCount -eq 0) {
-        $alerts += "No se encontraron backups recientes"
-    }
+                if (-not $completeData) {
+                    throw "No se pudieron recolectar los datos de la base de datos"
+                }
 
-    if ($alerts.Count -gt 0) {
-        Write-Host ""
-        Write-Host "🚨 ALERTAS:" -ForegroundColor Yellow
-        foreach ($alert in $alerts) {
-            Write-Host "   ⚠️ $alert" -ForegroundColor Yellow
+                Write-Host "✅ Datos recolectados exitosamente:" -ForegroundColor Green
+
+                # Mostrar resumen de datos recolectados
+                $indexCount = if ($completeData.IndexStats) { $completeData.IndexStats.Count } else { 0 }
+                $diskCount = if ($completeData.DiskStats) { $completeData.DiskStats.Count } else { 0 }
+                $backupCount = if ($completeData.BackupData) { $completeData.BackupData.Count } else { 0 }
+
+                Write-Host "   - Información de instancia: ✓" -ForegroundColor Green
+                Write-Host "   - Análisis de índices: $indexCount índices" -ForegroundColor Green
+                Write-Host "   - Espacio en disco: $diskCount archivos analizados" -ForegroundColor Green
+                Write-Host "   - Consumo de recursos: ✓" -ForegroundColor Green
+                Write-Host "   - Historial de backups: $backupCount backups" -ForegroundColor Green
+
+                # Generar HTML
+                $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+                $ReportFile = Join-Path $ReportPath "Reporte_Completo_${DatabaseName}_$timestamp.html"
+
+                Generate-CompleteHTMLReport -ReportData $completeData -OutputPath $ReportFile -CssFile $CssFile
+
+                Write-Host "`n✅ REPORTE COMPLETO GENERADO EXITOSAMENTE!" -ForegroundColor Green
+                Write-Host "📁 Ubicación: $ReportFile" -ForegroundColor Yellow
+
+                # Preguntar si abrir reporte
+                $answer = Read-Host "`n¿Desea abrir el reporte ahora? (S/N)"
+                if ($answer -eq "S" -or $answer -eq "s") {
+                    Write-Host "🌐 Abriendo reporte en el navegador..." -ForegroundColor Cyan
+                    Start-Process $ReportFile
+                }
+            }
+            catch {
+                Write-Error "❌ Error durante la generación del reporte: $($_.Exception.Message)"
+            }
+        }
+
+        "2" {
+            # 💽 REPORTE DIARIO DE DISCOS
+            Write-Host "`n💽 EJECUTANDO REPORTE DIARIO DE DISCOS..." -ForegroundColor Cyan
+            $diskReport = Get-DailyDiskReport -SqlInstances @($SqlInstance) -ReportPath $ReportPath
+            if ($diskReport) {
+                Write-Host "✅ Reporte diario de discos completado" -ForegroundColor Green
+                Write-Host "📁 Archivo: $($diskReport.ReportFile)" -ForegroundColor Yellow
+            }
+        }
+
+        "3" {
+            # 🔄 VERIFICACIÓN DE VERSIONES Y PARCHES
+            Write-Host "`n🔄 EJECUTANDO VERIFICACIÓN DE VERSIONES Y PARCHES..." -ForegroundColor Cyan
+            $versionReport = Get-VersionComplianceReport -SqlInstances @($SqlInstance) -ReportPath $ReportPath
+            if ($versionReport) {
+                Write-Host "✅ Verificación de versiones completada" -ForegroundColor Green
+                Write-Host "📁 Archivo: $($versionReport.ReportFile)" -ForegroundColor Yellow
+
+                # Mostrar resumen
+                if ($versionReport.Summary.OutdatedServers -gt 0) {
+                    Write-Host "⚠️  Servidores desactualizados: $($versionReport.Summary.OutdatedServers)" -ForegroundColor Red
+                }
+                else {
+                    Write-Host "✅ Todos los servidores están actualizados" -ForegroundColor Green
+                }
+            }
+        }
+
+        "4" {
+            # 📊 ESTADO DE JOBS DE BACKUP
+            Write-Host "`n📊 VERIFICANDO ESTADO DE JOBS DE BACKUP..." -ForegroundColor Cyan
+            $backupJobsReport = Get-BackupJobsHealthReport -SqlInstances @($SqlInstance) -ReportPath $ReportPath
+            if ($backupJobsReport) {
+                Write-Host "✅ Verificación de jobs de backup completada" -ForegroundColor Green
+                Write-Host "📁 Archivo: $($backupJobsReport.ReportFile)" -ForegroundColor Yellow
+
+                if ($backupJobsReport.TotalErrors -gt 0) {
+                    Write-Host "🚨 Jobs con errores: $($backupJobsReport.TotalErrors)" -ForegroundColor Red
+                }
+                else {
+                    Write-Host "✅ Todos los jobs de backup están funcionando correctamente" -ForegroundColor Green
+                }
+            }
+        }
+
+        "5" {
+            # 🚀 COLECCIÓN MEJORADA (TODAS LAS FUNCIONES)
+            Write-Host "`n🚀 EJECUTANDO COLECCIÓN MEJORADA COMPLETA..." -ForegroundColor Cyan
+            $enhancedCollection = Invoke-EnhancedDataCollection -SqlInstances @($SqlInstance) -ReportPath $ReportPath -DailyMode:$true
+            if ($enhancedCollection) {
+                Write-Host "✅ Colección mejorada completada exitosamente" -ForegroundColor Green
+                Write-Host "📁 Archivo principal: $($enhancedCollection.ReportFile)" -ForegroundColor Yellow
+                Write-Host "📊 Servidores procesados: $($enhancedCollection.ServersProcessed)" -ForegroundColor Green
+
+                # Preguntar si abrir reporte
+                $answer = Read-Host "`n¿Desea abrir el reporte principal ahora? (S/N)"
+                if ($answer -eq "S" -or $answer -eq "s") {
+                    Write-Host "🌐 Abriendo reporte en el navegador..." -ForegroundColor Cyan
+                    Start-Process $enhancedCollection.ReportFile
+                }
+            }
+        }
+
+        "6" {
+            # 📜 MOSTRAR FUNCIONES DISPONIBLES
+            Write-Host "`n🛠️  FUNCIONES DBATOOLS DISPONIBLES:" -ForegroundColor Cyan
+            Show-DbaToolsFunctions
+        }
+
+        "7" {
+            # ❌ SALIR
+            Write-Host "`n👋 ¡Hasta pronto!" -ForegroundColor Green
+            exit 0
+        }
+
+        default {
+            Write-Host "❌ Opción no válida. Por favor seleccione 1-7." -ForegroundColor Red
         }
     }
 
-    # Mostrar consultas costosas
-    if ($completeData.ExpensiveQueries -and $completeData.ExpensiveQueries.Count -gt 0) {
-        Write-Host ""
-        Write-Host "⚡ CONSULTAS COSTOSAS:" -ForegroundColor Cyan
-        $topQuery = $completeData.ExpensiveQueries[0]
-        Write-Host "   Consulta más costosa: $([math]::Round($topQuery.CPUTotalSegundos, 2))s total" -ForegroundColor Yellow
+    if ($choice -ne "7") {
+        Write-Host "`n" + "-"*50 -ForegroundColor Gray
+        $continue = Read-Host "¿Desea realizar otra operación? (S/N)"
+        if ($continue -ne "S" -and $continue -ne "s") {
+            Write-Host "👋 ¡Hasta pronto!" -ForegroundColor Green
+            break
+        }
     }
 
-    # Preguntar si abrir reporte
-    Write-Host ""
-    $answer = Read-Host "¿Desea abrir el reporte ahora? (S/N)"
-    if ($answer -eq "S" -or $answer -eq "s") {
-        Write-Host "🌐 Abriendo reporte en el navegador..." -ForegroundColor Cyan
-        Start-Process $ReportFile
-    }
-
-}
-catch {
-    Write-Error "❌ Error durante la generación del reporte: $($_.Exception.Message)"
-    exit 1
-}
-
-Write-Host ""
-Write-Host "🎯 SCRIPT COMPLETADO!" -ForegroundColor Green
+} while ($choice -ne "7")

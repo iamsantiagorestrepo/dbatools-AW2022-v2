@@ -11,12 +11,19 @@
         # Cargar CSS
         $cssContent = Get-CSSContent -CssFile $CssFile
 
-        # Extraer datos
+        # Extraer datos existentes
         $instanceInfo = $ReportData.InstanceInfo.InstanceInfo
         $indexStats = $ReportData.IndexStats
         $diskStats = $ReportData.DiskStats
         $resourceUsage = $ReportData.ResourceUsage
         $backupData = $ReportData.BackupData
+
+        # Extraer NUEVOS DATOS
+        $enhancedData = $ReportData.EnhancedData
+        $versionInfo = $enhancedData.VersionInfo
+        $detailedDiskSpace = $enhancedData.DetailedDiskSpace
+        $backupJobStatus = $enhancedData.BackupJobStatus
+        $backupJobsHaveErrors = $enhancedData.BackupJobsHaveErrors
 
         # Calcular métricas para el diseño moderno
         $totalIndexes = if ($indexStats) { $indexStats.Count } else { 0 }
@@ -26,6 +33,12 @@
         $criticalFiles = if ($diskStats) { ($diskStats | Where-Object { $_.PorcentajeUsado -gt 90 }).Count } else { 0 }
         $connectionCount = if ($resourceUsage) { $resourceUsage.ConnectionCount } else { 0 }
         $recentBackups = if ($backupData) { $backupData.Count } else { 0 }
+
+        # NUEVAS MÉTRICAS
+        $mountPoints = if ($detailedDiskSpace) { ($detailedDiskSpace | Where-Object { $_.IsMountPoint }).Count } else { 0 }
+        $failedBackupJobs = if ($backupJobStatus) { ($backupJobStatus | Where-Object { $_.JobStatus -eq "Failed" }).Count } else { 0 }
+        $patchesBehind = if ($versionInfo) { $versionInfo.PatchesBehind } else { 0 }
+        $isUpToDate = if ($versionInfo) { $versionInfo.IsUpToDate } else { $false }
 
         # Generar HTML con la estructura MODERNA
         $html = @"
@@ -93,9 +106,7 @@
             </div>
         </div>
 
-
-
-        <!-- STATS GRID -->
+        <!-- STATS GRID MEJORADO -->
         <div class="stats-grid">
             <div class="stat-card $(if ($rebuildRecommended -gt 0) { 'critical' } else { 'success' })">
                 <div class="stat-icon">📈</div>
@@ -117,9 +128,232 @@
                 <div class="stat-value">$recentBackups</div>
                 <div class="stat-label">Backups Recientes</div>
             </div>
+            <!-- NUEVAS ESTADÍSTICAS -->
+            <div class="stat-card $(if ($patchesBehind -gt 0) { 'warning' } else { 'success' })">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-value">$patchesBehind</div>
+                <div class="stat-label">Parches Pendientes</div>
+            </div>
+            <div class="stat-card $(if ($failedBackupJobs -gt 0) { 'critical' } else { 'success' })">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-value">$failedBackupJobs</div>
+                <div class="stat-label">Jobs Fallidos</div>
+            </div>
         </div>
 
-        <!-- SECCIÓN DE ÍNDICES -->
+        <!-- NUEVA SECCIÓN: INFORMACIÓN DE VERSIÓN Y PARCHES -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🔍</span>
+                Información de Versión y Cumplimiento de Parches
+            </h2>
+            $(if ($versionInfo) {
+                @"
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Propiedad</th>
+                            <th>Valor</th>
+                            <th>Estado</th>
+                            <th>Recomendación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Instancia SQL</strong></td>
+                            <td>$($versionInfo.SqlInstance)</td>
+                            <td><span class="badge $(if ($versionInfo.IsUpToDate) { 'badge-success' } else { 'badge-warning' })">$(if ($versionInfo.IsUpToDate) { 'Actualizado' } else { 'Desactualizado' })</span></td>
+                            <td>$(if ($versionInfo.IsUpToDate) { '✅ Al día con parches' } else { '⚠️ Aplicar parches pendientes' })</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Versión</strong></td>
+                            <td>$($versionInfo.Version)</td>
+                            <td><span class="badge badge-info">$($versionInfo.ProductLevel)</span></td>
+                            <td>Versión actual del motor</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Build Number</strong></td>
+                            <td>$($versionInfo.BuildNumber)</td>
+                            <td><span class="badge $(if ($versionInfo.PatchesBehind -eq 0) { 'badge-success' } else { 'badge-warning' })">$($versionInfo.PatchesBehind) parches pendientes</span></td>
+                            <td>$(if ($versionInfo.PatchesBehind -eq 0) { '✅ Build actual' } else { '⚠️ Actualizar build' })</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Edición</strong></td>
+                            <td>$($versionInfo.Edition)</td>
+                            <td><span class="badge badge-info">$($versionInfo.Edition)</span></td>
+                            <td>Edición instalada</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Última Verificación</strong></td>
+                            <td>$($versionInfo.CheckDate)</td>
+                            <td><span class="badge badge-info">Completado</span></td>
+                            <td>Verificación contra base de parches</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            $(if ($versionInfo.PatchesBehind -gt 0 -and $versionInfo.LatestAvailableBuild) {
+                @"
+            <div class="alert-warning" style="margin-top: 15px;">
+                <strong>⚠️ Actualización Recomendada:</strong>
+                El servidor tiene $($versionInfo.PatchesBehind) parches pendientes.
+                Última versión disponible: $($versionInfo.LatestAvailableBuild.NameLevel) (Build: $($versionInfo.LatestAvailableBuild.Build))
+            </div>
+"@
+            })
+"@
+            } else {
+                "<div class='no-data'>No se pudo obtener información de versión y parches</div>"
+            })
+        </section>
+
+        <!-- NUEVA SECCIÓN: REPORTE DETALLADO DE DISCOS -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">💽</span>
+                Reporte Detallado de Espacio en Disco
+            </h2>
+            $(if ($detailedDiskSpace -and $detailedDiskSpace.Count -gt 0) {
+                @"
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Unidad/Ruta</th>
+                            <th>Etiqueta</th>
+                            <th>Capacidad (GB)</th>
+                            <th>Usado (GB)</th>
+                            <th>Libre (GB)</th>
+                            <th>% Usado</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        $(
+                            foreach ($disk in $detailedDiskSpace) {
+                                $usageClass = if ($disk.PercentUsed -gt 90) { 'status-critical' }
+                                elseif ($disk.PercentUsed -gt 80) { 'status-warning' }
+                                else { 'status-success' }
+                                $badgeClass = if ($disk.AlertLevel -eq "Critico") { 'badge-critical' }
+                                elseif ($disk.AlertLevel -eq "Advertencia") { 'badge-warning' }
+                                else { 'badge-success' }
+                                $typeIcon = if ($disk.IsMountPoint) { '📌' } else { '💾' }
+                                @"
+                        <tr>
+                            <td><strong>$typeIcon $($disk.Name)</strong></td>
+                            <td>$($disk.Label)</td>
+                            <td>$([math]::Round($disk.CapacityGB, 2))</td>
+                            <td>$([math]::Round($disk.UsedGB, 2))</td>
+                            <td>$([math]::Round($disk.FreeGB, 2))</td>
+                            <td><span class="$usageClass">$([math]::Round($disk.PercentUsed, 2))%</span></td>
+                            <td><span class="badge badge-info">$($disk.MountPointType)</span></td>
+                            <td><span class="badge $badgeClass">$($disk.AlertLevel)</span></td>
+                        </tr>
+"@
+                            }
+                        )
+                    </tbody>
+                </table>
+            </div>
+            <div class="stats-grid" style="margin-top: 15px;">
+                <div class="stat-card $(if (($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Critico' }).Count -gt 0) { 'critical' } else { 'success' })">
+                    <div class="stat-icon">🚨</div>
+                    <div class="stat-value">$(($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Critico' }).Count)</div>
+                    <div class="stat-label">Críticos</div>
+                </div>
+                <div class="stat-card $(if (($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Advertencia' }).Count -gt 0) { 'warning' } else { 'info' })">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-value">$(($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Advertencia' }).Count)</div>
+                    <div class="stat-label">Advertencias</div>
+                </div>
+                <div class="stat-card info">
+                    <div class="stat-icon">📌</div>
+                    <div class="stat-value">$mountPoints</div>
+                    <div class="stat-label">Puntos Montaje</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value">$(($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Normal' }).Count)</div>
+                    <div class="stat-label">Normales</div>
+                </div>
+            </div>
+"@
+            } else {
+                "<div class='no-data'>No se pudo obtener información detallada de discos</div>"
+            })
+        </section>
+
+        <!-- NUEVA SECCIÓN: ESTADO DE JOBS DE BACKUP -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">📋</span>
+                Estado de Jobs de Backup
+            </h2>
+            $(if ($backupJobStatus -and $backupJobStatus.Count -gt 0) {
+                @"
+            <div class="table-container compact-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre del Job</th>
+                            <th>Habilitado</th>
+                            <th>Última Ejecución</th>
+                            <th>Estado Última Ejecución</th>
+                            <th>Estado Actual</th>
+                            <th>Fallos (24h)</th>
+                            <th>Mensaje de Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        $(
+                            foreach ($job in $backupJobStatus) {
+                                $statusClass = if ($job.JobStatus -eq "Failed") { 'status-critical' }
+                                elseif ($job.JobStatus -eq "Warning") { 'status-warning' }
+                                elseif ($job.JobStatus -eq "Success") { 'status-success' }
+                                else { 'status-info' }
+                                $badgeClass = if ($job.JobStatus -eq "Failed") { 'badge-critical' }
+                                elseif ($job.JobStatus -eq "Warning") { 'badge-warning' }
+                                elseif ($job.JobStatus -eq "Success") { 'badge-success' }
+                                else { 'badge-info' }
+                                $enabledIcon = if ($job.JobEnabled) { '✅' } else { '❌' }
+                                @"
+                        <tr>
+                            <td><strong>$($job.JobName)</strong></td>
+                            <td>$enabledIcon</td>
+                            <td>$($job.LastRunDate)</td>
+                            <td>$($job.LastRunStatus)</td>
+                            <td><span class="badge $badgeClass">$($job.JobStatus)</span></td>
+                            <td><span class="$statusClass">$($job.FailedRunsLast24h)</span></td>
+                            <td title="$($job.ErrorMessage)"><small>$(if ($job.ErrorMessage) { $job.ErrorMessage.Substring(0, [Math]::Min(50, $job.ErrorMessage.Length)) + "..." } else { "N/A" })</small></td>
+                        </tr>
+"@
+                            }
+                        )
+                    </tbody>
+                </table>
+            </div>
+            $(if ($backupJobsHaveErrors) {
+                @"
+            <div class="alert-critical" style="margin-top: 15px;">
+                <strong>🚨 ALERTA:</strong> Se detectaron jobs de backup con errores. Revise la configuración y ejecución de los jobs.
+            </div>
+"@
+            } else {
+                @"
+            <div class="alert-success" style="margin-top: 15px;">
+                <strong>✅ TODO CORRECTO:</strong> Todos los jobs de backup se están ejecutando correctamente.
+            </div>
+"@
+            })
+"@
+            } else {
+                "<div class='no-data'>No se encontraron jobs de backup configurados</div>"
+            })
+        </section>
+
+        <!-- SECCIÓN DE ÍNDICES (EXISTENTE) -->
         <section class="section">
             <h2 class="section-title">
                 <span class="section-icon">📊</span>
@@ -142,7 +376,6 @@
                     </thead>
                     <tbody>
                         $(
-                            # ⚠️ CORREGIDO: SIN Select-Object -First - MUESTRA TODOS LOS ÍNDICES
                             foreach ($index in $indexStats) {
                                 $statusClass = if ($index.Fragmentation -gt 30) { 'status-critical' }
                                 elseif ($index.Fragmentation -gt 10) { 'status-warning' }
@@ -172,7 +405,7 @@
             })
         </section>
 
-        <!-- SECCIÓN DE DISCO -->
+        <!-- SECCIÓN DE DISCO (EXISTENTE) -->
         <section class="section">
             <h2 class="section-title">
                 <span class="section-icon">💾</span>
@@ -221,7 +454,7 @@
             })
         </section>
 
-        <!-- SECCIÓN DE BACKUPS -->
+        <!-- SECCIÓN DE BACKUPS (EXISTENTE) -->
         <section class="section">
             <h2 class="section-title">
                 <span class="section-icon">🔄</span>
@@ -264,8 +497,7 @@
             })
         </section>
 
-
-           <!-- SECCIÓN DE CONSULTAS COSTOSAS -->
+        <!-- SECCIÓN DE CONSULTAS COSTOSAS (EXISTENTE) -->
         <section class="section">
             <h2 class="section-title">
                 <span class="section-icon">⚡</span>
@@ -314,27 +546,6 @@
                             <td>$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</td>
                             <td><small>UPDATE Production.Product SET ListPrice = ListPrice * 1.1 WHERE ProductCategoryID = 2</small></td>
                         </tr>
-                        <tr>
-                            <td><span class="status-success">0.87</span></td>
-                            <td>45</td>
-                            <td>0.0193</td>
-                            <td>$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</td>
-                            <td><small>EXEC sp_helpdb 'AdventureWorks2022'</small></td>
-                        </tr>
-                        <tr>
-                            <td><span class="status-success">0.56</span></td>
-                            <td>120</td>
-                            <td>0.0047</td>
-                            <td>$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</td>
-                            <td><small>SELECT COUNT(*) FROM Sales.SalesOrderDetail WHERE LineTotal > 1000</small></td>
-                        </tr>
-                        <tr>
-                            <td><span class="status-success">0.34</span></td>
-                            <td>78</td>
-                            <td>0.0044</td>
-                            <td>$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</td>
-                            <td><small>INSERT INTO #TempTable SELECT ProductID, Name FROM Production.Product</small></td>
-                        </tr>
 "@
                         })
                     </tbody>
@@ -342,85 +553,8 @@
             </div>
         </section>
 
-        <!-- SECCIÓN DE ESTADÍSTICAS DE MEMORIA -->
-        <section class="section">
-            <h2 class="section-title">
-                <span class="section-icon">🧠</span>
-                Estadísticas de Memoria
-            </h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tipo Memoria</th>
-                            <th>Memoria Física (MB)</th>
-                            <th>Memoria Comprometida (MB)</th>
-                            <th>Memoria Objetivo (MB)</th>
-                            <th>Páginas (MB)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        $(if ($memoryStats -and $memoryStats.Count -gt 0) {
-                            foreach ($memory in $memoryStats) {
-                                $usageClass = if ($memory.MemoriaComprometidaMB -gt $memory.MemoriaFisicaMB * 0.9) { 'status-warning' } else { 'status-success' }
-                                @"
-                        <tr>
-                            <td><strong>$($memory.TipoMemoria)</strong></td>
-                            <td>$(if ($memory.MemoriaFisicaMB) { [math]::Round($memory.MemoriaFisicaMB, 2) } else { 'N/A' })</td>
-                            <td><span class="$usageClass">$(if ($memory.MemoriaComprometidaMB) { [math]::Round($memory.MemoriaComprometidaMB, 2) } else { 'N/A' })</span></td>
-                            <td>$(if ($memory.MemoriaObjetivoMB) { [math]::Round($memory.MemoriaObjetivoMB, 2) } else { 'N/A' })</td>
-                            <td>$(if ($memory.PaginasMB) { [math]::Round($memory.PaginasMB, 2) } else { 'N/A' })</td>
-                        </tr>
-"@
-                            }
-                        } else {
-                            @"
-                        <tr>
-                            <td><strong>Memoria del Sistema</strong></td>
-                            <td>16384</td>
-                            <td><span class="status-success">8192</span></td>
-                            <td>12288</td>
-                            <td>N/A</td>
-                        </tr>
-                        <tr>
-                            <td><strong>SQL Server Buffer Pool</strong></td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>4096</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Plan Cache</strong></td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>1024</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Lock Manager</strong></td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>256</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Query Optimizer</strong></td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>N/A</td>
-                            <td>128</td>
-                        </tr>
-"@
-                        })
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        
-
-        <!-- ALERTAS -->
-        $(if ($rebuildRecommended -gt 0 -or $criticalFiles -gt 0 -or $recentBackups -eq 0) {
+        <!-- ALERTAS MEJORADAS -->
+        $(if ($rebuildRecommended -gt 0 -or $criticalFiles -gt 0 -or $recentBackups -eq 0 -or $patchesBehind -gt 0 -or $failedBackupJobs -gt 0) {
             @"
         <section class="section">
             <h2 class="section-title">
@@ -444,6 +578,17 @@
                 if ($connectionCount -gt 50) {
                     $alerts += "<div class='alert-info'>🔌 Alto número de conexiones activas ($connectionCount) - monitoree el rendimiento</div>"
                 }
+                # NUEVAS ALERTAS
+                if ($patchesBehind -gt 0) {
+                    $alerts += "<div class='alert-warning'>🔧 $patchesBehind parche(s) pendiente(s) - actualice el servidor SQL Server</div>"
+                }
+                if ($failedBackupJobs -gt 0) {
+                    $alerts += "<div class='alert-critical'>🚨 $failedBackupJobs job(s) de backup con errores - revise la configuración inmediatamente</div>"
+                }
+                if (($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Critico' }).Count -gt 0) {
+                    $criticalDisksCount = ($detailedDiskSpace | Where-Object { $_.AlertLevel -eq 'Critico' }).Count
+                    $alerts += "<div class='alert-critical'>💽 $criticalDisksCount disco(s) en estado CRÍTICO - espacio insuficiente</div>"
+                }
                 $alerts -join ''
             )
         </section>
@@ -454,6 +599,7 @@
         <footer class="footer">
             <p>Reporte generado con dbatools - $(Get-Date -Format 'MM/dd/yyyy HH:mm:ss')</p>
             <p>DBATools Proyecto 1 - Sistema de Monitoreo SQL Server by Santiago Guevara</p>
+            <p><strong>NUEVAS FUNCIONES:</strong> Verificación de parches • Reporte de discos • Monitoreo de jobs de backup</p>
         </footer>
     </div>
 </body>
@@ -461,7 +607,7 @@
 "@
 
         Set-Content -Path $OutputPath -Value $html -Encoding UTF8
-        Write-Host "✅ HTML generado exitosamente con diseño moderno" -ForegroundColor Green
+        Write-Host "✅ HTML generado exitosamente con diseño moderno y nuevas secciones" -ForegroundColor Green
     }
     catch {
         Write-Error "❌ Error generando HTML: $($_.Exception.Message)"
@@ -504,5 +650,40 @@ function Get-CSSContent {
     catch {
         Write-Warning "❌ Error cargando CSS: $($_.Exception.Message)"
         return ""
+    }
+}
+
+# NUEVA FUNCIÓN PARA REPORTES ESPECIALIZADOS
+function Generate-SpecializedReports {
+    param(
+        [hashtable]$EnhancedData,
+        [string]$OutputPath,
+        [string]$CssFile
+    )
+
+    try {
+        Write-Host "🎨 Generando reportes especializados..." -ForegroundColor Cyan
+
+        $cssContent = Get-CSSContent -CssFile $CssFile
+
+        # Generar reporte de cumplimiento de versiones
+        $versionReport = Generate-VersionComplianceReport -EnhancedData $EnhancedData -CssContent $cssContent
+        $versionReportPath = Join-Path (Split-Path $OutputPath -Parent) "version_compliance_report.html"
+        Set-Content -Path $versionReportPath -Value $versionReport -Encoding UTF8
+
+        # Generar reporte diario de discos
+        $diskReport = Generate-DailyDiskReport -EnhancedData $EnhancedData -CssContent $cssContent
+        $diskReportPath = Join-Path (Split-Path $OutputPath -Parent) "daily_disk_report.html"
+        Set-Content -Path $diskReportPath -Value $diskReport -Encoding UTF8
+
+        Write-Host "✅ Reportes especializados generados exitosamente" -ForegroundColor Green
+        return @{
+            VersionReport = $versionReportPath
+            DiskReport    = $diskReportPath
+        }
+    }
+    catch {
+        Write-Error "❌ Error generando reportes especializados: $($_.Exception.Message)"
+        return $null
     }
 }

@@ -108,6 +108,7 @@ function Test-DatabaseConnectivity {
         return $false
     }
 }
+
 function Get-SQLServices {
     param([string]$ComputerName)
 
@@ -123,6 +124,303 @@ function Get-SQLServices {
     }
 }
 
+# NUEVAS FUNCIONES AÑADIDAS
+
+function Get-SQLServerVersionInfo {
+    param([string]$SqlInstance)
+
+    try {
+        Write-Host "   🔄 Verificando versión de SQL Server y parches..." -ForegroundColor Yellow
+
+        # Obtener información de la instancia
+        $instance = Get-DbaInstance -SqlInstance $SqlInstance -ErrorAction Stop
+
+        if (-not $instance) {
+            throw "No se pudo conectar al servidor $SqlInstance"
+        }
+
+        # Obtener información de build
+        $buildInfo = Get-DbaBuildReference -Build $instance.BuildNumber -ErrorAction SilentlyContinue
+
+        # Si no se encuentra información específica, buscar por versión mayor
+        if (-not $buildInfo) {
+            $buildInfo = Get-DbaBuildReference -MajorVersion $instance.VersionMajor -ErrorAction SilentlyContinue |
+            Where-Object { $_.Build -ge $instance.BuildNumber } |
+            Sort-Object Build |
+            Select-Object -First 1
+        }
+
+        # Obtener últimos parches disponibles
+        $latestPatches = Get-DbaBuildReference -Latest -ErrorAction SilentlyContinue |
+        Where-Object { $_.NameLevel -like "*$($instance.Edition)*" -or $_.NameLevel -like "*$($instance.VersionMajor)*" }
+
+        # Determinar si está actualizado
+        $isUpToDate = $false
+        $patchesBehind = 0
+        $latestBuild = $null
+
+        if ($latestPatches) {
+            $latestBuild = $latestPatches | Sort-Object Build -Descending | Select-Object -First 1
+            $currentBuild = $instance.BuildNumber
+
+            if ($latestBuild.Build -eq $currentBuild) {
+                $isUpToDate = $true
+                $patchesBehind = 0
+            }
+            else {
+                # Contar parches disponibles
+                $availablePatches = Get-DbaBuildReference -MajorVersion $instance.VersionMajor -ErrorAction SilentlyContinue |
+                Where-Object { $_.Build -gt $currentBuild } |
+                Sort-Object Build
+                $patchesBehind = $availablePatches.Count
+            }
+        }
+
+        Write-Host "   ✅ Información de versión obtenida" -ForegroundColor Green
+
+        return [PSCustomObject]@{
+            SqlInstance          = $SqlInstance
+            InstanceName         = $instance.InstanceName
+            Version              = $instance.Version
+            BuildNumber          = $instance.BuildNumber
+            Edition              = $instance.Edition
+            ProductLevel         = $instance.ProductLevel
+            CurrentBuildInfo     = $buildInfo
+            IsUpToDate           = $isUpToDate
+            PatchesBehind        = $patchesBehind
+            LatestAvailableBuild = $latestBuild
+            CheckDate            = Get-Date
+        }
+
+    }
+    catch {
+        Write-Error "   ❌ Error verificando versión de SQL Server: $($_.Exception.Message)"
+        return [PSCustomObject]@{
+            SqlInstance          = $SqlInstance
+            InstanceName         = "N/A"
+            Version              = "N/A"
+            BuildNumber          = "N/A"
+            Edition              = "N/A"
+            ProductLevel         = "N/A"
+            CurrentBuildInfo     = $null
+            IsUpToDate           = $false
+            PatchesBehind        = -1
+            LatestAvailableBuild = $null
+            CheckDate            = Get-Date
+            Error                = $_.Exception.Message
+        }
+    }
+}
+
+function Get-DetailedDiskSpace {
+    param([string]$SqlInstance)
+
+    try {
+        Write-Host "   💽 Obteniendo información detallada de discos..." -ForegroundColor Yellow
+
+        # Obtener información de discos
+        $diskInfo = Get-DbaDiskSpace -SqlInstance $SqlInstance -ErrorAction Stop
+
+        # Procesar información para identificar puntos de montaje
+        $detailedDisks = @()
+
+        foreach ($disk in $diskInfo) {
+            $isMountPoint = $false
+            $mountPointInfo = ""
+
+            # Detectar si es punto de montaje
+            if ($disk.Name -match "\\[A-Z]\\" -and $disk.Name -notmatch "^[A-Z]:\\$") {
+                $isMountPoint = $true
+                $mountPointInfo = "Punto de Montaje"
+            }
+            elseif ($disk.Name -eq ($disk.Name.Substring(0, 2) + "\")) {
+                $mountPointInfo = "Disco Principal"
+            }
+            else {
+                $mountPointInfo = "Carpeta/Unidad"
+            }
+
+            # Calcular porcentaje de uso
+            $percentUsed = 0
+            if ($disk.Size -gt 0) {
+                $percentUsed = [math]::Round(($disk.Used / $disk.Size) * 100, 2)
+            }
+
+            # Determinar estado de alerta
+            $alertLevel = "Normal"
+            if ($percentUsed -ge 90) {
+                $alertLevel = "Critico"
+            }
+            elseif ($percentUsed -ge 80) {
+                $alertLevel = "Advertencia"
+            }
+
+            $detailedDisks += [PSCustomObject]@{
+                ComputerName   = $disk.ComputerName
+                Name           = $disk.Name
+                Label          = $disk.Label
+                CapacityGB     = [math]::Round($disk.Size / 1GB, 2)
+                FreeGB         = [math]::Round($disk.Free / 1GB, 2)
+                UsedGB         = [math]::Round($disk.Used / 1GB, 2)
+                PercentUsed    = $percentUsed
+                IsMountPoint   = $isMountPoint
+                MountPointType = $mountPointInfo
+                AlertLevel     = $alertLevel
+                CheckDate      = Get-Date
+            }
+        }
+
+        Write-Host "   ✅ Información detallada de discos obtenida ($($detailedDisks.Count) unidades)" -ForegroundColor Green
+        return $detailedDisks
+
+    }
+    catch {
+        Write-Error "   ❌ Error obteniendo información de discos: $($_.Exception.Message)"
+        return @()
+    }
+}
+
+function Get-BackupJobStatus {
+    param([string]$SqlInstance, [int]$HoursBack = 24)
+
+    try {
+        Write-Host "   📊 Verificando estado de jobs de backup..." -ForegroundColor Yellow
+
+        # Obtener jobs de SQL Server Agent
+        $jobs = Get-DbaAgentJob -SqlInstance $SqlInstance -ErrorAction Stop |
+        Where-Object { $_.Name -like "*backup*" -or $_.Name -like "*Backup*" -or $_.Description -like "*backup*" }
+
+        $jobStatusReport = @()
+        $hasErrors = $false
+
+        foreach ($job in $jobs) {
+            # Obtener historial reciente del job
+            $jobHistory = Get-DbaAgentJobHistory -SqlInstance $SqlInstance -Job $job.Name -Since (Get-Date).AddHours(-$HoursBack) -ErrorAction SilentlyContinue
+
+            $lastRun = $jobHistory | Sort-Object RunDate -Descending | Select-Object -First 1
+            $failedRuns = $jobHistory | Where-Object { $_.Status -eq "Failed" }
+
+            $jobStatus = "Success"
+            $errorMessage = ""
+
+            if ($failedRuns.Count -gt 0) {
+                $jobStatus = "Failed"
+                $hasErrors = $true
+                $errorMessage = ($failedRuns | Select-Object -First 1).Message
+            }
+            elseif ($lastRun -and $lastRun.Status -eq "Failed") {
+                $jobStatus = "Failed"
+                $hasErrors = $true
+                $errorMessage = $lastRun.Message
+            }
+            elseif (-not $lastRun) {
+                $jobStatus = "Unknown"
+            }
+
+            $jobStatusReport += [PSCustomObject]@{
+                SqlInstance       = $SqlInstance
+                JobName           = $job.Name
+                JobEnabled        = $job.IsEnabled
+                LastRunDate       = if ($lastRun) { $lastRun.RunDate } else { "Nunca" }
+                LastRunStatus     = if ($lastRun) { $lastRun.Status } else { "Unknown" }
+                JobStatus         = $jobStatus
+                FailedRunsLast24h = $failedRuns.Count
+                ErrorMessage      = $errorMessage
+                CheckDate         = Get-Date
+            }
+        }
+
+        # Si no se encontraron jobs de backup, reportar
+        if ($jobs.Count -eq 0) {
+            $jobStatusReport += [PSCustomObject]@{
+                SqlInstance       = $SqlInstance
+                JobName           = "No se encontraron jobs de backup"
+                JobEnabled        = $false
+                LastRunDate       = "N/A"
+                LastRunStatus     = "Unknown"
+                JobStatus         = "Warning"
+                FailedRunsLast24h = 0
+                ErrorMessage      = "No se detectaron jobs con nombre o descripción relacionada a backup"
+                CheckDate         = Get-Date
+            }
+        }
+
+        Write-Host "   ✅ Estado de jobs de backup verificado ($($jobStatusReport.Count) jobs)" -ForegroundColor Green
+
+        return @{
+            JobStatusReport = $jobStatusReport
+            HasErrors       = $hasErrors
+        }
+
+    }
+    catch {
+        Write-Error "   ❌ Error verificando jobs de backup: $($_.Exception.Message)"
+        return @{
+            JobStatusReport = @([PSCustomObject]@{
+                    SqlInstance       = $SqlInstance
+                    JobName           = "Error"
+                    JobEnabled        = $false
+                    LastRunDate       = "N/A"
+                    LastRunStatus     = "Error"
+                    JobStatus         = "Error"
+                    FailedRunsLast24h = 0
+                    ErrorMessage      = $_.Exception.Message
+                    CheckDate         = Get-Date
+                })
+            HasErrors       = $true
+        }
+    }
+}
+
+function Send-DbaNotification {
+    param(
+        [string]$Subject,
+        [string]$Body,
+        [string]$Type = "Warning"
+    )
+
+    try {
+        # Configuración de notificaciones
+        $notificationConfig = @{
+            LogPath      = ".\reports\notifications.log"
+            EmailEnabled = $false
+            TeamsEnabled = $false
+        }
+
+        # Log de notificación
+        $logEntry = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - [$Type] - $Subject"
+        Add-Content -Path $notificationConfig.LogPath -Value $logEntry
+
+        # Mostrar notificación en consola
+        switch ($Type) {
+            "Error" {
+                Write-Host "   🚨 NOTIFICACIÓN - $Subject" -ForegroundColor Red
+                Write-Host "   📝 $Body" -ForegroundColor Red
+            }
+            "Warning" {
+                Write-Host "   ⚠️  NOTIFICACIÓN - $Subject" -ForegroundColor Yellow
+                Write-Host "   📝 $Body" -ForegroundColor Yellow
+            }
+            "Success" {
+                Write-Host "   ✅ NOTIFICACIÓN - $Subject" -ForegroundColor Green
+                Write-Host "   📝 $Body" -ForegroundColor Green
+            }
+            default {
+                Write-Host "   ℹ️  NOTIFICACIÓN - $Subject" -ForegroundColor White
+                Write-Host "   📝 $Body" -ForegroundColor White
+            }
+        }
+
+        Write-Host "   ✅ Notificación registrada" -ForegroundColor Green
+        return $true
+
+    }
+    catch {
+        Write-Error "   ❌ Error enviando notificación: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 # Función para mostrar resumen de herramientas disponibles
 function Show-DbaToolsFunctions {
     Write-Host "`n🛠️  FUNCIONES DBATOOLS DISPONIBLES:" -ForegroundColor Cyan
@@ -133,5 +431,9 @@ function Show-DbaToolsFunctions {
     Write-Host "   • Get-ServerSpace" -ForegroundColor Yellow
     Write-Host "   • Test-DatabaseConnectivity" -ForegroundColor Yellow
     Write-Host "   • Get-SQLServices" -ForegroundColor Yellow
+    Write-Host "   • Get-SQLServerVersionInfo" -ForegroundColor Green
+    Write-Host "   • Get-DetailedDiskSpace" -ForegroundColor Green
+    Write-Host "   • Get-BackupJobStatus" -ForegroundColor Green
+    Write-Host "   • Send-DbaNotification" -ForegroundColor Green
     Write-Host ""
 }
