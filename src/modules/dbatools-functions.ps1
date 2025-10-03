@@ -132,87 +132,93 @@ function Get-SQLServerVersionInfo {
     try {
         Write-Host "   🔄 Verificando versión de SQL Server y parches..." -ForegroundColor Yellow
 
-        # Obtener información de la instancia
-        $instance = Get-DbaInstance -SqlInstance $SqlInstance -ErrorAction Stop
+        # Consulta directa para información de versión
+        $query = @"
+SELECT
+    SERVERPROPERTY('ProductVersion') AS ProductVersion,
+    SERVERPROPERTY('ProductLevel') AS ProductLevel,
+    SERVERPROPERTY('Edition') AS Edition,
+    SERVERPROPERTY('ProductUpdateLevel') AS ProductUpdateReference,
+    SERVERPROPERTY('BuildClrVersion') AS BuildClrVersion,
+    SERVERPROPERTY('Collation') AS Collation,
+    @@VERSION AS FullVersion
+"@
+        $versionInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
 
-        if (-not $instance) {
-            throw "No se pudo conectar al servidor $SqlInstance"
-        }
+        # Análisis básico de versión
+        $productVersion = $versionInfo.ProductVersion
+        $productLevel = $versionInfo.ProductLevel
+        $edition = $versionInfo.Edition
 
-        # Obtener información de build
-        $buildInfo = Get-DbaBuildReference -Build $instance.BuildNumber -ErrorAction SilentlyContinue
+        # Extraer el número de build de la versión del producto
+        $buildNumber = $productVersion.Split('.')[2]
 
-        # Si no se encuentra información específica, buscar por versión mayor
-        if (-not $buildInfo) {
-            $buildInfo = Get-DbaBuildReference -MajorVersion $instance.VersionMajor -ErrorAction SilentlyContinue |
-            Where-Object { $_.Build -ge $instance.BuildNumber } |
-            Sort-Object Build |
-            Select-Object -First 1
-        }
-
-        # Obtener últimos parches disponibles
-        $latestPatches = Get-DbaBuildReference -Latest -ErrorAction SilentlyContinue |
-        Where-Object { $_.NameLevel -like "*$($instance.Edition)*" -or $_.NameLevel -like "*$($instance.VersionMajor)*" }
-
-        # Determinar si está actualizado
-        $isUpToDate = $false
+        # Determinar si necesita parches (lógica simple basada en nivel de producto)
+        $isUpToDate = $true
         $patchesBehind = 0
-        $latestBuild = $null
+        $status = "Actualizado"
+        $recommendation = "El servidor está actualizado"
 
-        if ($latestPatches) {
-            $latestBuild = $latestPatches | Sort-Object Build -Descending | Select-Object -First 1
-            $currentBuild = $instance.BuildNumber
+        # Lógica simple para determinar estado de parches
+        if ($productLevel -eq "RTM") {
+            $isUpToDate = $false
+            $patchesBehind = 1
+            $status = "Necesita Service Pack"
+            $recommendation = "Se recomienda aplicar Service Pack más reciente"
+        }
+        elseif ($productLevel -eq "SP1") {
+            $isUpToDate = $false
+            $patchesBehind = 1
+            $status = "Necesita actualización"
+            $recommendation = "Se recomienda aplicar Service Pack más reciente"
+        }
 
-            if ($latestBuild.Build -eq $currentBuild) {
-                $isUpToDate = $true
-                $patchesBehind = 0
-            }
-            else {
-                # Contar parches disponibles
-                $availablePatches = Get-DbaBuildReference -MajorVersion $instance.VersionMajor -ErrorAction SilentlyContinue |
-                Where-Object { $_.Build -gt $currentBuild } |
-                Sort-Object Build
-                $patchesBehind = $availablePatches.Count
+        # Para SQL Server 2022, verificar si está en la versión más reciente
+        if ($productVersion.StartsWith("16.")) {
+            # SQL Server 2022
+            # Build 16.0.1000.6 es RTM, builds más recientes tienen mejoras
+            if ($buildNumber -eq "1000") {
+                $isUpToDate = $false
+                $patchesBehind = 1
+                $status = "Necesita actualización acumulativa"
+                $recommendation = "Se recomienda aplicar la última actualización acumulativa para SQL Server 2022"
             }
         }
 
-        Write-Host "   ✅ Información de versión obtenida" -ForegroundColor Green
-
-        return [PSCustomObject]@{
-            SqlInstance          = $SqlInstance
-            InstanceName         = $instance.InstanceName
-            Version              = $instance.Version
-            BuildNumber          = $instance.BuildNumber
-            Edition              = $instance.Edition
-            ProductLevel         = $instance.ProductLevel
-            CurrentBuildInfo     = $buildInfo
-            IsUpToDate           = $isUpToDate
-            PatchesBehind        = $patchesBehind
-            LatestAvailableBuild = $latestBuild
-            CheckDate            = Get-Date
+        return @{
+            Version        = $productVersion
+            BuildNumber    = $buildNumber
+            ProductLevel   = $productLevel
+            Edition        = $edition
+            IsUpToDate     = $isUpToDate
+            PatchesBehind  = $patchesBehind
+            Status         = $status
+            Recommendation = $recommendation
+            FullVersion    = $versionInfo.FullVersion
+            Collation      = $versionInfo.Collation
+            CheckDate      = Get-Date
         }
-
     }
     catch {
         Write-Error "   ❌ Error verificando versión de SQL Server: $($_.Exception.Message)"
-        return [PSCustomObject]@{
-            SqlInstance          = $SqlInstance
-            InstanceName         = "N/A"
-            Version              = "N/A"
-            BuildNumber          = "N/A"
-            Edition              = "N/A"
-            ProductLevel         = "N/A"
-            CurrentBuildInfo     = $null
-            IsUpToDate           = $false
-            PatchesBehind        = -1
-            LatestAvailableBuild = $null
-            CheckDate            = Get-Date
-            Error                = $_.Exception.Message
+        return @{
+            Version        = "N/A"
+            BuildNumber    = "N/A"
+            ProductLevel   = "N/A"
+            Edition        = "N/A"
+            IsUpToDate     = $false
+            PatchesBehind  = 999
+            Status         = "Error"
+            Recommendation = "No se pudo verificar el estado de parches"
+            FullVersion    = "N/A"
+            Collation      = "N/A"
+            CheckDate      = Get-Date
         }
     }
-}
+ }
 
-function Get-DetailedDiskSpace {
+
+function Get-DetailedDiskSpaceLegacy {
     param([string]$SqlInstance)
 
     try {

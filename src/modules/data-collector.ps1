@@ -351,6 +351,312 @@ function Get-PatchAnalysis {
     }
 }
 
+# FUNCIONES NUEVAS CORREGIDAS CON DBATOOLS CORRECTO
+
+function Get-SQLServerVersionInfo {
+    param([string]$SqlInstance)
+
+    try {
+        Write-Host "   🔄 Verificando versión de SQL Server y parches..." -ForegroundColor Yellow
+
+        # Usar Get-DbaBuildReference para información de versión y parches
+        try {
+            $buildInfo = Get-DbaBuildReference -SqlInstance $SqlInstance -EnableException
+        }
+        catch {
+            Write-Host "   ℹ️  Get-DbaBuildReference no disponible, usando consulta directa..." -ForegroundColor Yellow
+            $buildInfo = $null
+        }
+
+        # Consulta directa como respaldo
+        $query = @"
+SELECT
+    SERVERPROPERTY('ProductVersion') AS ProductVersion,
+    SERVERPROPERTY('ProductLevel') AS ProductLevel,
+    SERVERPROPERTY('Edition') AS Edition,
+    SERVERPROPERTY('ProductUpdateLevel') AS ProductUpdateReference,
+    SERVERPROPERTY('BuildClrVersion') AS BuildClrVersion,
+    @@VERSION AS FullVersion
+"@
+        $versionInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
+
+        # Análisis básico de versión
+        $productVersion = $versionInfo.ProductVersion
+        $productLevel = $versionInfo.ProductLevel
+
+        # Determinar si necesita parches (lógica simple)
+        $isUpToDate = $true
+        $patchesBehind = 0
+        $status = "Actualizado"
+
+        if ($productLevel -eq "RTM") {
+            $isUpToDate = $false
+            $patchesBehind = 1
+            $status = "Necesita Service Pack"
+        }
+
+        # Si tenemos info de build reference, usar datos más precisos
+        if ($buildInfo) {
+            $isUpToDate = $buildInfo.Supported
+            $status = if ($buildInfo.Supported) { "Soportado" } else { "No soportado" }
+        }
+
+        return @{
+            Version       = $productVersion
+            ProductLevel  = $productLevel
+            Edition       = $versionInfo.Edition
+            IsUpToDate    = $isUpToDate
+            PatchesBehind = $patchesBehind
+            Status        = $status
+            FullVersion   = $versionInfo.FullVersion
+            CheckDate     = Get-Date
+            BuildInfo     = $buildInfo
+        }
+    }
+    catch {
+        Write-Error "   ❌ Error verificando versión de SQL Server: $($_.Exception.Message)"
+        return @{
+            Version       = "N/A"
+            ProductLevel  = "N/A"
+            Edition       = "N/A"
+            IsUpToDate    = $false
+            PatchesBehind = 999
+            Status        = "Error"
+            FullVersion   = "N/A"
+            CheckDate     = Get-Date
+        }
+    }
+}
+
+function Get-DetailedDiskSpace {
+    param([string]$SqlInstance)
+
+    try {
+        Write-Host "   💽 Obteniendo información detallada de discos..." -ForegroundColor Yellow
+
+        # Usar Get-DbaDiskSpace de dbatools
+        try {
+            $diskInfo = Get-DbaDiskSpace -SqlInstance $SqlInstance -EnableException
+            if ($diskInfo) {
+                $formattedDisks = foreach ($disk in $diskInfo) {
+                    @{
+                        Name        = $disk.Name
+                        TotalGB     = [math]::Round($disk.Size.ToGB(), 2)
+                        FreeGB      = [math]::Round($disk.Free.ToGB(), 2)
+                        UsedGB      = [math]::Round(($disk.Size.ToGB() - $disk.Free.ToGB()), 2)
+                        PercentUsed = [math]::Round((($disk.Size.ToGB() - $disk.Free.ToGB()) / $disk.Size.ToGB() * 100), 2)
+                        AlertLevel  = if (($disk.Size.ToGB() - $disk.Free.ToGB()) / $disk.Size.ToGB() * 100 -gt 90) { 'Critico' }
+                        elseif (($disk.Size.ToGB() - $disk.Free.ToGB()) / $disk.Size.ToGB() * 100 -gt 80) { 'Advertencia' }
+                        else { 'Normal' }
+                        Type        = 'Disco Local'
+                    }
+                }
+                Write-Host "   ✅ Información de discos obtenida via dbatools ($($formattedDisks.Count) volúmenes)" -ForegroundColor Green
+                return $formattedDisks
+            }
+        }
+        catch {
+            Write-Host "   ℹ️  Get-DbaDiskSpace no disponible, usando consulta directa..." -ForegroundColor Yellow
+        }
+
+        # Consulta directa como respaldo
+        $query = @"
+SELECT
+    DISTINCT
+    vs.volume_mount_point AS Name,
+    vs.total_bytes/1024/1024/1024 AS TotalGB,
+    vs.available_bytes/1024/1024/1024 AS FreeGB,
+    (vs.total_bytes - vs.available_bytes)/1024/1024/1024 AS UsedGB,
+    CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS DECIMAL(5,2)) AS PercentUsed,
+    CASE
+        WHEN CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS DECIMAL(5,2)) > 90 THEN 'Critico'
+        WHEN CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS Decimal(5,2)) > 80 THEN 'Advertencia'
+        ELSE 'Normal'
+    END AS AlertLevel,
+    CASE
+        WHEN vs.volume_mount_point LIKE '%[A-Z]:\' THEN 'Disco Local'
+        ELSE 'Punto de Montaje'
+    END AS Type
+FROM sys.master_files AS f
+CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id) AS vs
+ORDER BY vs.volume_mount_point
+"@
+
+        $diskInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
+
+        Write-Host "   ✅ Información de discos obtenida ($($diskInfo.Count) volúmenes)" -ForegroundColor Green
+        return $diskInfo
+    }
+    catch {
+        Write-Error "   ❌ Error obteniendo información de discos: $($_.Exception.Message)"
+        return @()
+    }
+}
+
+function Get-BackupJobStatus {
+    param(
+        [string]$SqlInstance,
+        [int]$HoursBack = 24
+    )
+
+    try {
+        Write-Host "   📊 Verificando estado de jobs de backup..." -ForegroundColor Yellow
+
+        # Usar Get-DbaAgentJob de dbatools
+        try {
+            $jobs = Get-DbaAgentJob -SqlInstance $SqlInstance -EnableException | Where-Object { $_.Name -like '*backup*' -or $_.Name -like '*Backup*' }
+
+            $jobStatusReport = @()
+            $hasErrors = $false
+
+            foreach ($job in $jobs) {
+                $jobStatus = @{
+                    JobName      = $job.Name
+                    IsEnabled    = $job.IsEnabled
+                    LastRunDate  = $job.LastRunDate
+                    JobStatus    = $job.LastRunOutcome
+                    HasErrors    = ($job.LastRunOutcome -eq "Failed")
+                    ErrorMessage = ""
+                }
+
+                if ($job.LastRunOutcome -eq "Failed") {
+                    $hasErrors = $true
+                }
+
+                $jobStatusReport += $jobStatus
+            }
+
+            Write-Host "   ✅ Estado de jobs de backup verificado via dbatools ($($jobStatusReport.Count) jobs)" -ForegroundColor Green
+
+            return @{
+                JobStatusReport = $jobStatusReport
+                HasErrors       = $hasErrors
+                TotalJobs       = $jobStatusReport.Count
+                FailedJobs      = ($jobStatusReport | Where-Object { $_.HasErrors -eq $true }).Count
+            }
+        }
+        catch {
+            Write-Host "   ℹ️  Get-DbaAgentJob no disponible, usando consulta directa..." -ForegroundColor Yellow
+        }
+
+        # Consulta directa como respaldo
+        $query = @"
+SELECT
+    j.name AS JobName,
+    j.enabled AS IsEnabled,
+    h.run_status AS LastRunStatus,
+    CASE h.run_status
+        WHEN 0 THEN 'Failed'
+        WHEN 1 THEN 'Succeeded'
+        WHEN 2 THEN 'Retry'
+        WHEN 3 THEN 'Canceled'
+        ELSE 'Unknown'
+    END AS JobStatus,
+    h.run_date AS LastRunDate,
+    h.run_time AS LastRunTime,
+    h.run_duration AS RunDuration,
+    h.message AS ErrorMessage
+FROM msdb.dbo.sysjobs j
+LEFT JOIN (
+    SELECT
+        job_id,
+        run_status,
+        run_date,
+        run_time,
+        run_duration,
+        message,
+        ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY run_date DESC, run_time DESC) as rn
+    FROM msdb.dbo.sysjobhistory
+    WHERE step_id = 0  -- Solo el resultado del job, no steps individuales
+) h ON j.job_id = h.job_id AND h.rn = 1
+WHERE j.name LIKE '%backup%' OR j.name LIKE '%Backup%'
+ORDER BY j.name
+"@
+
+        $jobStatus = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "msdb" -Query $query -ErrorAction Stop
+
+        $hasErrors = $false
+        $jobStatusReport = @()
+
+        foreach ($job in $jobStatus) {
+            $jobReport = @{
+                JobName       = $job.JobName
+                IsEnabled     = $job.IsEnabled
+                LastRunStatus = $job.LastRunStatus
+                JobStatus     = $job.JobStatus
+                LastRunDate   = $job.LastRunDate
+                HasErrors     = ($job.JobStatus -eq "Failed")
+                ErrorMessage  = $job.ErrorMessage
+            }
+
+            if ($job.JobStatus -eq "Failed") {
+                $hasErrors = $true
+            }
+
+            $jobStatusReport += $jobReport
+        }
+
+        Write-Host "   ✅ Estado de jobs de backup verificado ($($jobStatusReport.Count) jobs)" -ForegroundColor Green
+
+        return @{
+            JobStatusReport = $jobStatusReport
+            HasErrors       = $hasErrors
+            TotalJobs       = $jobStatusReport.Count
+            FailedJobs      = ($jobStatusReport | Where-Object { $_.HasErrors -eq $true }).Count
+        }
+    }
+    catch {
+        Write-Error "   ❌ Error verificando jobs de backup: $($_.Exception.Message)"
+        return @{
+            JobStatusReport = @()
+            HasErrors       = $false
+            TotalJobs       = 0
+            FailedJobs      = 0
+        }
+    }
+}
+
+function Send-DbaNotification {
+    param(
+        [string]$Subject,
+        [string]$Body,
+        [string]$Type = "Info"
+    )
+
+    try {
+        # En una implementación real, aquí enviarías email, Teams, Slack, etc.
+        # Por ahora solo mostramos en consola
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+        switch ($Type) {
+            "Error" {
+                Write-Host "🚨 NOTIFICACIÓN - $Subject" -ForegroundColor Red
+                Write-Host "📝 $Body" -ForegroundColor Red
+            }
+            "Warning" {
+                Write-Host "⚠️ NOTIFICACIÓN - $Subject" -ForegroundColor Yellow
+                Write-Host "📝 $Body" -ForegroundColor Yellow
+            }
+            "Success" {
+                Write-Host "✅ NOTIFICACIÓN - $Subject" -ForegroundColor Green
+                Write-Host "📝 $Body" -ForegroundColor Green
+            }
+            default {
+                Write-Host "ℹ️ NOTIFICACIÓN - $Subject" -ForegroundColor Cyan
+                Write-Host "📝 $Body" -ForegroundColor Cyan
+            }
+        }
+
+        Write-Host "   ✅ Notificación registrada" -ForegroundColor Gray
+
+        return $true
+    }
+    catch {
+        Write-Warning "   ❌ Error enviando notificación: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 # NUEVAS FUNCIONES AÑADIDAS PARA LAS MEJORAS SOLICITADAS
 
 function Get-DailyDiskReport {
@@ -396,7 +702,7 @@ function Get-DailyDiskReport {
             # Mostrar resumen por servidor
             Write-Host "   📊 Resumen discos $instance" -ForegroundColor White
             Write-Host "      • Total unidades: $($detailedDisks.Count)" -ForegroundColor Gray
-            Write-Host "      • Puntos de montaje: $(($detailedDisks | Where-Object { $_.IsMountPoint }).Count)" -ForegroundColor Gray
+            Write-Host "      • Puntos de montaje: $(($detailedDisks | Where-Object { $_.Type -eq 'Punto de Montaje' }).Count)" -ForegroundColor Gray
             Write-Host "      • Estado crítico: $($criticalDisks.Count)" -ForegroundColor Red
             Write-Host "      • Estado advertencia: $($warningDisks.Count)" -ForegroundColor Yellow
         }
@@ -405,8 +711,8 @@ function Get-DailyDiskReport {
         Write-Host "   ✅ Reporte diario de discos completado" -ForegroundColor Green
 
         return @{
-            Data       = $dailyReportData
-            Timestamp  = $timestamp
+            Data      = $dailyReportData
+            Timestamp = $timestamp
         }
 
     }
@@ -436,15 +742,15 @@ function Get-VersionComplianceReport {
             $versionReportData[$instance] = $versionInfo
 
             # Generar notificaciones si no está actualizado
-            if ($versionInfo.PatchesBehind -gt 0) {
-                $patchMessage = "Servidor $instance tiene $($versionInfo.PatchesBehind) parches pendientes. " +
-                "Versión actual: $($versionInfo.Version)"
+            if ($versionInfo.PatchesBehind -gt 0 -or -not $versionInfo.IsUpToDate) {
+                $patchMessage = "Servidor $instance necesita actualización. " +
+                "Versión actual: $($versionInfo.Version), Estado: $($versionInfo.Status)"
                 Send-DbaNotification -Subject "⚠️ Servidor no actualizado - $instance" -Body $patchMessage -Type "Warning"
             }
         }
 
         # Generar resumen del reporte
-        $outdatedServers = $versionReportData.GetEnumerator() | Where-Object { $_.Value.PatchesBehind -gt 0 }
+        $outdatedServers = $versionReportData.GetEnumerator() | Where-Object { $_.Value.PatchesBehind -gt 0 -or -not $_.Value.IsUpToDate }
         $upToDateServers = $versionReportData.GetEnumerator() | Where-Object { $_.Value.IsUpToDate -eq $true }
 
         $summary = [PSCustomObject]@{
@@ -465,15 +771,15 @@ function Get-VersionComplianceReport {
         if ($outdatedServers.Count -gt 0) {
             Write-Host "      • Servidores desactualizados:" -ForegroundColor Red
             foreach ($server in $outdatedServers) {
-                Write-Host "        - $($server.Key): $($server.Value.PatchesBehind) parches pendientes" -ForegroundColor Red
+                Write-Host "        - $($server.Key): $($server.Value.Status)" -ForegroundColor Red
             }
         }
 
         Write-Host "   ✅ Reporte de versiones completado" -ForegroundColor Green
 
         return @{
-            Data       = $versionReportData
-            Summary    = $summary
+            Data    = $versionReportData
+            Summary = $summary
         }
 
     }
@@ -686,231 +992,5 @@ function Invoke-EnhancedDataCollection {
     catch {
         Write-Error "❌ Error en colección mejorada: $($_.Exception.Message)"
         return $null
-    }
-}
-
-# AGREGAR ESTAS FUNCIONES AL FINAL
-
-function Get-SQLServerVersionInfo {
-    param([string]$SqlInstance)
-
-    try {
-        Write-Host "   🔄 Verificando versión de SQL Server y parches..." -ForegroundColor Yellow
-
-        $query = @"
-SELECT
-    SERVERPROPERTY('ProductVersion') AS ProductVersion,
-    SERVERPROPERTY('ProductLevel') AS ProductLevel,
-    SERVERPROPERTY('Edition') AS Edition,
-    SERVERPROPERTY('ProductUpdateLevel') AS ProductUpdateReference,
-    @@VERSION AS FullVersion
-"@
-
-        $versionInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
-
-        # Análisis básico de versión
-        $productVersion = $versionInfo.ProductVersion
-        $productLevel = $versionInfo.ProductLevel
-
-        # Determinar si necesita parches (lógica simple)
-        $isUpToDate = $true
-        $patchesBehind = 0
-        $status = "Actualizado"
-
-        if ($productLevel -eq "RTM") {
-            $isUpToDate = $false
-            $patchesBehind = 1
-            $status = "Necesita Service Pack"
-        }
-
-        return @{
-            Version = $productVersion
-            ProductLevel = $productLevel
-            Edition = $versionInfo.Edition
-            IsUpToDate = $isUpToDate
-            PatchesBehind = $patchesBehind
-            Status = $status
-            FullVersion = $versionInfo.FullVersion
-            CheckDate = Get-Date
-        }
-    }
-    catch {
-        Write-Error "   ❌ Error verificando versión de SQL Server: $($_.Exception.Message)"
-        return @{
-            Version = "N/A"
-            ProductLevel = "N/A"
-            Edition = "N/A"
-            IsUpToDate = $false
-            PatchesBehind = 999
-            Status = "Error"
-            FullVersion = "N/A"
-            CheckDate = Get-Date
-        }
-    }
-}
-
-function Get-DetailedDiskSpace {
-    param([string]$SqlInstance)
-
-    try {
-        Write-Host "   💽 Obteniendo información detallada de discos..." -ForegroundColor Yellow
-
-        $query = @"
-SELECT
-    DISTINCT
-    vs.volume_mount_point AS Name,
-    vs.total_bytes/1024/1024/1024 AS TotalGB,
-    vs.available_bytes/1024/1024/1024 AS FreeGB,
-    (vs.total_bytes - vs.available_bytes)/1024/1024/1024 AS UsedGB,
-    CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS DECIMAL(5,2)) AS PercentUsed,
-    CASE
-        WHEN CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS DECIMAL(5,2)) > 90 THEN 'Critico'
-        WHEN CAST((vs.total_bytes - vs.available_bytes) * 100.0 / vs.total_bytes AS DECIMAL(5,2)) > 80 THEN 'Advertencia'
-        ELSE 'Normal'
-    END AS AlertLevel,
-    CASE
-        WHEN vs.volume_mount_point LIKE '%[A-Z]:\' THEN 'Disco Local'
-        ELSE 'Punto de Montaje'
-    END AS Type,
-    0 AS IsMountPoint  -- Simplificado para esta implementación
-FROM sys.master_files AS f
-CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id) AS vs
-ORDER BY vs.volume_mount_point
-"@
-
-        $diskInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
-
-        Write-Host "   ✅ Información de discos obtenida ($($diskInfo.Count) volúmenes)" -ForegroundColor Green
-        return $diskInfo
-    }
-    catch {
-        Write-Error "   ❌ Error obteniendo información de discos: $($_.Exception.Message)"
-        return @()
-    }
-}
-
-function Get-BackupJobStatus {
-    param(
-        [string]$SqlInstance,
-        [int]$HoursBack = 24
-    )
-
-    try {
-        Write-Host "   📊 Verificando estado de jobs de backup..." -ForegroundColor Yellow
-
-        $query = @"
-SELECT
-    j.name AS JobName,
-    j.enabled AS IsEnabled,
-    h.run_status AS LastRunStatus,
-    CASE h.run_status
-        WHEN 0 THEN 'Failed'
-        WHEN 1 THEN 'Succeeded'
-        WHEN 2 THEN 'Retry'
-        WHEN 3 THEN 'Canceled'
-        ELSE 'Unknown'
-    END AS JobStatus,
-    h.run_date AS LastRunDate,
-    h.run_time AS LastRunTime,
-    h.run_duration AS RunDuration,
-    h.message AS ErrorMessage
-FROM msdb.dbo.sysjobs j
-LEFT JOIN (
-    SELECT
-        job_id,
-        run_status,
-        run_date,
-        run_time,
-        run_duration,
-        message,
-        ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY run_date DESC, run_time DESC) as rn
-    FROM msdb.dbo.sysjobhistory
-    WHERE step_id = 0  -- Solo el resultado del job, no steps individuales
-) h ON j.job_id = h.job_id AND h.rn = 1
-WHERE j.name LIKE '%backup%' OR j.name LIKE '%Backup%'
-ORDER BY j.name
-"@
-
-        $jobStatus = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "msdb" -Query $query -ErrorAction Stop
-
-        $hasErrors = $false
-        $jobStatusReport = @()
-
-        foreach ($job in $jobStatus) {
-            $jobReport = @{
-                JobName = $job.JobName
-                IsEnabled = $job.IsEnabled
-                LastRunStatus = $job.LastRunStatus
-                JobStatus = $job.JobStatus
-                LastRunDate = $job.LastRunDate
-                HasErrors = ($job.JobStatus -eq "Failed")
-                ErrorMessage = $job.ErrorMessage
-            }
-
-            if ($job.JobStatus -eq "Failed") {
-                $hasErrors = $true
-            }
-
-            $jobStatusReport += $jobReport
-        }
-
-        Write-Host "   ✅ Estado de jobs de backup verificado ($($jobStatusReport.Count) jobs)" -ForegroundColor Green
-
-        return @{
-            JobStatusReport = $jobStatusReport
-            HasErrors = $hasErrors
-            TotalJobs = $jobStatusReport.Count
-            FailedJobs = ($jobStatusReport | Where-Object { $_.HasErrors -eq $true }).Count
-        }
-    }
-    catch {
-        Write-Error "   ❌ Error verificando jobs de backup: $($_.Exception.Message)"
-        return @{
-            JobStatusReport = @()
-            HasErrors = $false
-            TotalJobs = 0
-            FailedJobs = 0
-        }
-    }
-}
-
-function Send-DbaNotification {
-    param(
-        [string]$Subject,
-        [string]$Body,
-        [string]$Type = "Info"
-    )
-
-    try {
-        # En una implementación real, aquí enviarías email, Teams, Slack, etc.
-        # Por ahora solo mostramos en consola
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-
-        switch ($Type) {
-            "Error" {
-                Write-Host "🚨 NOTIFICACIÓN - $Subject" -ForegroundColor Red
-                Write-Host "📝 $Body" -ForegroundColor Red
-            }
-            "Warning" {
-                Write-Host "⚠️ NOTIFICACIÓN - $Subject" -ForegroundColor Yellow
-                Write-Host "📝 $Body" -ForegroundColor Yellow
-            }
-            "Success" {
-                Write-Host "✅ NOTIFICACIÓN - $Subject" -ForegroundColor Green
-                Write-Host "📝 $Body" -ForegroundColor Green
-            }
-            default {
-                Write-Host "ℹ️ NOTIFICACIÓN - $Subject" -ForegroundColor Cyan
-                Write-Host "📝 $Body" -ForegroundColor Cyan
-            }
-        }
-
-        Write-Host "   ✅ Notificación registrada" -ForegroundColor Gray
-
-        return $true
-    }
-    catch {
-        Write-Warning "   ❌ Error enviando notificación: $($_.Exception.Message)"
-        return $false
     }
 }

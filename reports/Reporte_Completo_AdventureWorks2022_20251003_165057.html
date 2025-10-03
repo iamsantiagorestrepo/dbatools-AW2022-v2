@@ -1,0 +1,3473 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte SQL Server - AdventureWorks2022</title>
+    <style>
+        :root {
+    /* Modern Color Palette - iPhone Style */
+    --primary: #007aff;
+    --primary-dark: #0051d5;
+    --primary-light: #4da3ff;
+    --secondary: #5856d6;
+    --success: #34c759;
+    --warning: #ff9500;
+    --danger: #ff3b30;
+    --info: #5ac8fa;
+
+    /* Neutrals - Clean & Professional */
+    --gray-50: #fafafa;
+    --gray-100: #f5f5f7;
+    --gray-200: #e8e8ed;
+    --gray-300: #d1d1d6;
+    --gray-400: #a1a1a6;
+    --gray-500: #8e8e93;
+    --gray-600: #636366;
+    --gray-700: #48484a;
+    --gray-800: #2c2c2e;
+    --gray-900: #1c1c1e;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.18);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.3);
+
+    /* Border Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: linear-gradient(180deg, #f5f5f7 0%, #e8e8ed 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding: 2rem;
+    color: var(--gray-900);
+    line-height: 1.47059;
+    position: relative;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle Background Pattern */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(0, 122, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(88, 86, 214, 0.03) 0%, transparent 50%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+body::after {
+    display: none;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    33% {
+        transform: translate(50px, -50px) rotate(120deg);
+    }
+
+    66% {
+        transform: translate(-30px, 30px) rotate(240deg);
+    }
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(30px) saturate(190%);
+    border-radius: 28px;
+    border: 0.5px solid rgba(0, 0, 0, 0.04);
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header Styles */
+.header {
+    background: linear-gradient(180deg, #007aff 0%, #0051d5 100%);
+    color: white;
+    padding: 3rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 0 L60 40 L100 50 L60 60 L50 100 L40 60 L0 50 L40 40 Z' fill='%23ffffff' fill-opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 100px 100px;
+    opacity: 0.4;
+}
+
+/* Database Icon SVG */
+.header h1::before {
+    content: '';
+    display: inline-block;
+    width: 48px;
+    height: 48px;
+    margin-right: 16px;
+    background: white;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'%3E%3C/ellipse%3E%3Cpath d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3'%3E%3C/path%3E%3Cpath d='M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5'%3E%3C/path%3E%3C/svg%3E") no-repeat center;
+    -webkit-mask-size: contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'%3E%3C/ellipse%3E%3Cpath d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3'%3E%3C/path%3E%3Cpath d='M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5'%3E%3C/path%3E%3C/svg%3E") no-repeat center;
+    mask-size: contain;
+    vertical-align: middle;
+}
+
+.header h1 {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    position: relative;
+    color: white;
+    letter-spacing: -0.5px;
+    animation: slideDown 0.6s ease-out;
+}
+
+.header .subtitle {
+    font-size: 1.125rem;
+    opacity: 0.92;
+    font-weight: 400;
+    position: relative;
+    animation: slideDown 0.6s ease-out 0.1s backwards;
+    letter-spacing: 0.2px;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Metadata Section */
+.metadata {
+    background: linear-gradient(to bottom, var(--gray-50), white);
+    padding: 2rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.metadata-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metadata-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
+}
+
+.metadata-item strong {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+    background: linear-gradient(to bottom, white, var(--gray-50));
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 1.75rem;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--gray-300), var(--gray-300));
+    transition: all 0.4s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-xl), var(--shadow-glow);
+}
+
+.stat-card.critical::before {
+    background: linear-gradient(90deg, var(--danger), #fca5a5);
+}
+
+.stat-card.warning::before {
+    background: linear-gradient(90deg, var(--warning), #fcd34d);
+}
+
+.stat-card.success::before {
+    background: linear-gradient(90deg, var(--success), #6ee7b7);
+}
+
+.stat-card.info::before {
+    background: linear-gradient(90deg, var(--info), #67e8f9);
+}
+
+.stat-value {
+    font-size: 2.75rem;
+    font-weight: 800;
+    margin: 1rem 0;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: countUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card.critical .stat-value {
+    background: linear-gradient(135deg, var(--danger), #f87171);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card.warning .stat-value {
+    background: linear-gradient(135deg, var(--warning), #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card.success .stat-value {
+    background: linear-gradient(135deg, var(--success), #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Section Styles */
+.section {
+    padding: 2rem;
+    border-bottom: 1px solid var(--gray-200);
+    animation: fadeIn 0.6s ease-out;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-title {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid transparent;
+    border-image: linear-gradient(90deg, var(--primary), var(--secondary)) 1;
+    font-weight: 700;
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--gray-200);
+    background: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 0.875rem;
+}
+
+th {
+    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    transition: background 0.2s ease;
+}
+
+tr:hover {
+    background: linear-gradient(to right, var(--gray-50), white);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status Classes */
+.status-critical,
+.status-warning,
+.status-success,
+.status-info {
+    font-weight: 600;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    transition: all 0.2s ease;
+}
+
+.status-critical::before,
+.status-warning::before,
+.status-success::before,
+.status-info::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-critical {
+    color: var(--danger);
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.status-critical::before {
+    background: var(--danger);
+    box-shadow: 0 0 8px var(--danger);
+}
+
+.status-warning {
+    color: #b45309;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+}
+
+.status-warning::before {
+    background: var(--warning);
+    box-shadow: 0 0 8px var(--warning);
+}
+
+.status-success {
+    color: #065f46;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+}
+
+.status-success::before {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.status-info {
+    color: #155e75;
+    background: linear-gradient(135deg, #cffafe, #a5f3fc);
+}
+
+.status-info::before {
+    background: var(--info);
+    box-shadow: 0 0 8px var(--info);
+}
+
+/* Alert Styles */
+.alert-critical,
+.alert-warning,
+.alert-info,
+.alert-success {
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border-radius: var(--radius-lg);
+    border-left: 4px solid;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.alert-critical {
+    background: linear-gradient(135deg, rgba(254, 226, 226, 0.9), rgba(254, 202, 202, 0.9));
+    border-left-color: var(--danger);
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.9), rgba(253, 230, 138, 0.9));
+    border-left-color: var(--warning);
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(207, 250, 254, 0.9), rgba(165, 243, 252, 0.9));
+    border-left-color: var(--info);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(167, 243, 208, 0.9));
+    border-left-color: var(--success);
+}
+
+/* Badge Styles */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.badge:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+}
+
+.badge-critical {
+    background: linear-gradient(135deg, var(--danger), #f87171);
+    color: white;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, var(--warning), #fbbf24);
+    color: white;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, var(--success), #34d399);
+    color: white;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, var(--info), #22d3ee);
+    color: white;
+}
+
+/* Status Grid */
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-radius: var(--radius-lg);
+    border-left: 4px solid var(--gray-300);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.status-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-md);
+}
+
+.status-label {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.status-value {
+    padding: 0.375rem 0.875rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.status-value.normal {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.status-value.warning {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #b45309;
+}
+
+.status-value.critical {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #991b1b;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--gray-900), var(--gray-800));
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+}
+
+.footer p {
+    opacity: 0.9;
+    font-size: 0.9375rem;
+}
+
+/* No Data State */
+.no-data {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--gray-500);
+    font-style: italic;
+}
+
+.no-data::before {
+    content: "📊";
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+
+    .header h1 {
+        font-size: 2rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        padding: 1.5rem;
+        gap: 1rem;
+    }
+
+    .section {
+        padding: 1.5rem;
+    }
+
+    .metadata-grid {
+        grid-template-columns: 1fr;
+    }
+
+    th,
+    td {
+        padding: 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Compact Table Mode */
+.compact-table {
+    font-size: 0.8125rem;
+}
+
+.compact-table th,
+.compact-table td {
+    padding: 0.625rem 0.875rem;
+}
+
+/* Ultra-compact for large datasets */
+.ultra-compact table {
+    font-size: 0.75rem;
+}
+
+.ultra-compact th,
+.ultra-compact td {
+    padding: 0.5rem 0.75rem;
+}
+
+.ultra-compact .badge {
+    font-size: 0.6875rem;
+    padding: 0.25rem 0.625rem;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
+}
+
+/* Loading Animation */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER MODERNO -->
+        <header class="header">
+            <div class="header-content">
+                <h1>📊 Reporte de Salud de SQL Server</h1>
+                <p class="subtitle">Análisis completo de rendimiento y mantenimiento</p>
+            </div>
+        </header>
+
+        <!-- METADATA GRID -->
+        <div class="metadata">
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <span class="metadata-icon">🗄️</span>
+                    <div>
+                        <strong>Base de datos:</strong> AdventureWorks2022
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">🖥️</span>
+                    <div>
+                        <strong>Servidor:</strong> SWO5CD5162C7N
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">🔧</span>
+                    <div>
+                        <strong>Edición:</strong> Developer Edition (64-bit)
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">📋</span>
+                    <div>
+                        <strong>Instancia:</strong> Microsoft SQL Server 2022 (RTM-GDR) (KB5063756) ((X64))
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">⚙️</span>
+                    <div>
+                        <strong>Versión:</strong> 16.0.1145.1
+                    </div>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">🔠</span>
+                    <div>
+                        <strong>Collation:</strong> SQL_Latin1_General_CP1_CI_AS
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS GRID MEJORADO -->
+        <div class="stats-grid">
+            <div class="stat-card critical">
+                <div class="stat-icon">📈</div>
+                <div class="stat-value">305</div>
+                <div class="stat-label">Índices Totales</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-icon">💾</div>
+                <div class="stat-value">2</div>
+                <div class="stat-label">Archivos Analizados</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-icon">🔌</div>
+                <div class="stat-value">1</div>
+                <div class="stat-label">Conexiones Activas</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-value">3</div>
+                <div class="stat-label">Backups Recientes</div>
+            </div>
+            <!-- NUEVAS ESTADÍSTICAS -->
+            <div class="stat-card success">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-value">0</div>
+                <div class="stat-label">Parches Pendientes</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-value">0</div>
+                <div class="stat-label">Jobs Fallidos</div>
+            </div>
+        </div>
+
+        <!-- NUEVA SECCIÓN: INFORMACIÓN DE VERSIÓN Y PARCHES -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🔍</span>
+                Información de Versión y Cumplimiento de Parches
+            </h2>
+            <div class='no-data'>No se pudo obtener información de versión y parches</div>
+        </section>
+
+        <!-- NUEVA SECCIÓN: REPORTE DETALLADO DE DISCOS -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">💽</span>
+                Reporte Detallado de Espacio en Disco
+            </h2>
+            <div class='no-data'>No se pudo obtener información detallada de discos</div>
+        </section>
+
+        <!-- NUEVA SECCIÓN: ESTADO DE JOBS DE BACKUP -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">📋</span>
+                Estado de Jobs de Backup
+            </h2>
+            <div class='no-data'>No se encontraron jobs de backup configurados</div>
+        </section>
+
+        <!-- SECCIÓN DE ÍNDICES (EXISTENTE) -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">📊</span>
+                Análisis de Índices - 305 Índices Encontrados
+            </h2>
+                        <div class="table-container compact-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tabla</th>
+                            <th>Índice</th>
+                            <th>Tipo</th>
+                            <th>Fragmentación</th>
+                            <th>Páginas</th>
+                            <th>Registros</th>
+                            <th>Acción Recomendada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                                <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PK_Person_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">100%</span></td>
+                            <td>8</td>
+                            <td>3808</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>AK_Employee_NationalIDNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>290</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeeDepartmentHistory</strong></td>
+                            <td>PK_EmployeeDepartmentHistory_BusinessEntityID_StartDate_DepartmentID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>296</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeePayHistory</strong></td>
+                            <td>PK_EmployeePayHistory_BusinessEntityID_RateChangeDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>316</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.CountryRegion</strong></td>
+                            <td>AK_CountryRegion_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>238</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.CountryRegion</strong></td>
+                            <td>PK_CountryRegion_CountryRegionCode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>238</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.StateProvince</strong></td>
+                            <td>PK_StateProvince_StateProvinceID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>181</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.vStateProvinceCountryRegion</strong></td>
+                            <td>IX_vStateProvinceCountryRegion</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>181</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_ProductNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>504</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>504</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductProductPhoto</strong></td>
+                            <td>PK_ProductProductPhoto_ProductID_ProductPhotoID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>504</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductReview</strong></td>
+                            <td>PK_ProductReview_ProductReviewID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>4</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ProductVendor</strong></td>
+                            <td>IX_ProductVendor_UnitMeasureCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>460</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.Vendor</strong></td>
+                            <td>PK_Vendor_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>104</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesPersonQuotaHistory</strong></td>
+                            <td>PK_SalesPersonQuotaHistory_BusinessEntityID_QuotaDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>163</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOfferProduct</strong></td>
+                            <td>AK_SpecialOfferProduct_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>538</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>IX_Store_SalesPersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">50%</span></td>
+                            <td>2</td>
+                            <td>701</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>AK_Employee_LoginID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>290</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>IX_BusinessEntityContact_ContactTypeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>909</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>IX_BusinessEntityContact_PersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>909</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductCostHistory</strong></td>
+                            <td>PK_ProductCostHistory_ProductID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>395</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductDescription</strong></td>
+                            <td>AK_ProductDescription_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>762</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductListPriceHistory</strong></td>
+                            <td>PK_ProductListPriceHistory_ProductID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>395</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductReview</strong></td>
+                            <td>IX_ProductReview_ProductID_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>4</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOfferProduct</strong></td>
+                            <td>PK_SpecialOfferProduct_SpecialOfferID_ProductID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>538</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>AK_Store_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-critical">33.33%</span></td>
+                            <td>3</td>
+                            <td>701</td>
+                            <td><span class="badge badge-critical">REBUILD</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPATH_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-warning">28.57%</span></td>
+                            <td>14</td>
+                            <td>1388</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPROPERTY_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-warning">28.57%</span></td>
+                            <td>14</td>
+                            <td>1387</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLVALUE_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-warning">28.57%</span></td>
+                            <td>14</td>
+                            <td>1388</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>AK_BusinessEntityContact_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">25%</span></td>
+                            <td>4</td>
+                            <td>909</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">25%</span></td>
+                            <td>4</td>
+                            <td>504</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModelProductDescriptionCulture</strong></td>
+                            <td>PK_ProductModelProductDescriptionCulture_ProductModelID_ProductDescriptionID_CultureID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-warning">25%</span></td>
+                            <td>4</td>
+                            <td>762</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.DatabaseLog</strong></td>
+                            <td></td>
+                            <td>HEAP</td>
+                            <td><span class="status-warning">23.71%</span></td>
+                            <td>776</td>
+                            <td>1596</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ProductVendor</strong></td>
+                            <td>PK_ProductVendor_ProductID_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-warning">20%</span></td>
+                            <td>5</td>
+                            <td>460</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>PK_BusinessEntityContact_BusinessEntityID_PersonID_ContactTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-warning">16.67%</span></td>
+                            <td>6</td>
+                            <td>909</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.DatabaseLog</strong></td>
+                            <td>PK_DatabaseLog_DatabaseLogID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">14.29%</span></td>
+                            <td>7</td>
+                            <td>1596</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductInventory</strong></td>
+                            <td>PK_ProductInventory_ProductID_LocationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-warning">14.29%</span></td>
+                            <td>7</td>
+                            <td>1069</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>IX_PurchaseOrderHeader_EmployeeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">14.29%</span></td>
+                            <td>7</td>
+                            <td>4012</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>IX_PurchaseOrderHeader_VendorID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">14.29%</span></td>
+                            <td>7</td>
+                            <td>4012</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>PK_BillOfMaterials_BillOfMaterialsID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-warning">11.11%</span></td>
+                            <td>9</td>
+                            <td>2679</td>
+                            <td><span class="badge badge-warning">REORGANIZE</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>IX_BillOfMaterials_UnitMeasureCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">10%</span></td>
+                            <td>10</td>
+                            <td>2679</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.JobCandidate</strong></td>
+                            <td>PK_JobCandidate_JobCandidateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">9.09%</span></td>
+                            <td>11</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>PK_Product_ProductID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">7.69%</span></td>
+                            <td>13</td>
+                            <td>504</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>AK_BillOfMaterials_ProductAssemblyID_ComponentID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">5%</span></td>
+                            <td>20</td>
+                            <td>2679</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderDetail</strong></td>
+                            <td>IX_PurchaseOrderDetail_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">5%</span></td>
+                            <td>20</td>
+                            <td>8845</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductPhoto</strong></td>
+                            <td>PK_ProductPhoto_ProductPhotoID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">2%</span></td>
+                            <td>50</td>
+                            <td>101</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>PK_Address_AddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0.88%</span></td>
+                            <td>342</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrderRouting</strong></td>
+                            <td>IX_WorkOrderRouting_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0.75%</span></td>
+                            <td>133</td>
+                            <td>67131</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLVALUE_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0.43%</span></td>
+                            <td>1388</td>
+                            <td>301696</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPROPERTY_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0.22%</span></td>
+                            <td>1387</td>
+                            <td>301696</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPATH_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0.22%</span></td>
+                            <td>1388</td>
+                            <td>301696</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>PK_SalesOrderDetail_SalesOrderID_SalesOrderDetailID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0.08%</span></td>
+                            <td>1233</td>
+                            <td>121317</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PK_Person_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0.08%</span></td>
+                            <td>3808</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PXML_Person_Demographics</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2152</td>
+                            <td>301696</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>PK_TransactionHistory_TransactionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>788</td>
+                            <td>113443</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrderRouting</strong></td>
+                            <td>PK_WorkOrderRouting_WorkOrderID_ProductID_OperationSequence</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>693</td>
+                            <td>67131</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>PK_SalesOrderHeader_SalesOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>682</td>
+                            <td>31465</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>PK_TransactionHistoryArchive_TransactionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>620</td>
+                            <td>89253</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>PK_WorkOrder_WorkOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>523</td>
+                            <td>72591</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>AK_SalesOrderDetail_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>451</td>
+                            <td>121317</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>IX_SalesOrderDetail_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>271</td>
+                            <td>121317</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>IX_TransactionHistory_ReferenceOrderID_ReferenceOrderLineID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>253</td>
+                            <td>113443</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.EmailAddress</strong></td>
+                            <td>PK_EmailAddress_BusinessEntityID_EmailAddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>249</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Password</strong></td>
+                            <td>PK_Password_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>235</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductPhoto</strong></td>
+                            <td>PK_ProductPhoto_ProductPhotoID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>234</td>
+                            <td>268</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>IX_Address_AddressLine1_AddressLine2_City_StateProvinceID_PostalCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>211</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>IX_TransactionHistoryArchive_ReferenceOrderID_ReferenceOrderLineID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>199</td>
+                            <td>89253</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>IX_TransactionHistory_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>197</td>
+                            <td>113443</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CreditCard</strong></td>
+                            <td>PK_CreditCard_CreditCardID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>187</td>
+                            <td>19118</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.EmailAddress</strong></td>
+                            <td>IX_EmailAddress_EmailAddress</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>182</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>IX_TransactionHistoryArchive_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>155</td>
+                            <td>89253</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.PersonPhone</strong></td>
+                            <td>PK_PersonPhone_BusinessEntityID_PhoneNumber_PhoneNumberTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>148</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>IX_WorkOrder_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>126</td>
+                            <td>72591</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>PK_Customer_CustomerID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>121</td>
+                            <td>19820</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.PersonPhone</strong></td>
+                            <td>IX_PersonPhone_PhoneNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>120</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>PK_BusinessEntityAddress_BusinessEntityID_AddressID_AddressTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>110</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>AK_SalesOrderHeader_SalesOrderNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>109</td>
+                            <td>31465</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>IX_WorkOrder_ScrapReasonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>108</td>
+                            <td>72591</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>IX_Person_LastName_FirstName_MiddleName</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>103</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>AK_SalesOrderHeader_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>102</td>
+                            <td>31465</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>PK_Store_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>101</td>
+                            <td>701</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CreditCard</strong></td>
+                            <td>AK_CreditCard_CardNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>100</td>
+                            <td>19118</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntity</strong></td>
+                            <td>PK_BusinessEntity_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>96</td>
+                            <td>20777</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CurrencyRate</strong></td>
+                            <td>PK_CurrencyRate_CurrencyRateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>96</td>
+                            <td>13532</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeaderSalesReason</strong></td>
+                            <td>PK_SalesOrderHeaderSalesReason_SalesOrderID_SalesReasonID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>86</td>
+                            <td>27647</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>AK_BusinessEntityAddress_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>83</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.vProductAndDescription</strong></td>
+                            <td>IX_vProductAndDescription</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>70</td>
+                            <td>1764</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntity</strong></td>
+                            <td>AK_BusinessEntity_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>67</td>
+                            <td>20777</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>AK_Person_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>65</td>
+                            <td>19972</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>AK_Address_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>64</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderDetail</strong></td>
+                            <td>PK_PurchaseOrderDetail_PurchaseOrderID_PurchaseOrderDetailID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>64</td>
+                            <td>8845</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>AK_Customer_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>64</td>
+                            <td>19820</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>PXML_Store_Demographics</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>64</td>
+                            <td>9113</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.PersonCreditCard</strong></td>
+                            <td>PK_PersonCreditCard_BusinessEntityID_CreditCardID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>60</td>
+                            <td>19118</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>AK_Customer_AccountNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>59</td>
+                            <td>19820</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>IX_SalesOrderHeader_CustomerID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>55</td>
+                            <td>31465</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>IX_SalesOrderHeader_SalesPersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>55</td>
+                            <td>31465</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CurrencyRate</strong></td>
+                            <td>AK_CurrencyRate_CurrencyRateDate_FromCurrencyCode_ToCurrencyCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>51</td>
+                            <td>13532</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>IX_BusinessEntityAddress_AddressID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>44</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>IX_BusinessEntityAddress_AddressTypeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>44</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>PK_PurchaseOrderHeader_PurchaseOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>42</td>
+                            <td>4012</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>PK_Document_DocumentNode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>40</td>
+                            <td>40</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.DatabaseLog</strong></td>
+                            <td></td>
+                            <td>HEAP</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>35</td>
+                            <td>40</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>IX_Customer_TerritoryID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>35</td>
+                            <td>19820</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>IX_Address_StateProvinceID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>34</td>
+                            <td>19614</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Illustration</strong></td>
+                            <td>PK_Illustration_IllustrationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>28</td>
+                            <td>27</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductDescription</strong></td>
+                            <td>PK_ProductDescription_ProductDescriptionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>18</td>
+                            <td>762</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PK_ProductModel_ProductModelID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>12</td>
+                            <td>128</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PXML_ProductModel_Instructions</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>12</td>
+                            <td>650</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>PK_Employee_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>7</td>
+                            <td>290</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PXML_Person_Demographics</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>6</td>
+                            <td>2152</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PK_ProductModel_ProductModelID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>5</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PXML_ProductModel_CatalogDescription</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>5</td>
+                            <td>350</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.JobCandidate</strong></td>
+                            <td>PK_JobCandidate_JobCandidateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>4</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>IX_Address_AddressLine1_AddressLine2_City_StateProvinceID_PostalCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>3</td>
+                            <td>211</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PXML_Person_AddContact</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>3</td>
+                            <td>195</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductProductPhoto</strong></td>
+                            <td></td>
+                            <td>HEAP</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>3</td>
+                            <td>504</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>PK_SalesOrderDetail_SalesOrderID_SalesOrderDetailID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>3</td>
+                            <td>1233</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.EmailAddress</strong></td>
+                            <td>IX_EmailAddress_EmailAddress</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2</td>
+                            <td>182</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>PK_TransactionHistory_TransactionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2</td>
+                            <td>788</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrderRouting</strong></td>
+                            <td>PK_WorkOrderRouting_WorkOrderID_ProductID_OperationSequence</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2</td>
+                            <td>693</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>AK_SalesOrderDetail_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2</td>
+                            <td>451</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>PK_SalesOrderHeader_SalesOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>2</td>
+                            <td>682</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.AWBuildVersion</strong></td>
+                            <td>PK_AWBuildVersion_SystemInformationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>1</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.DatabaseLog</strong></td>
+                            <td>PK_DatabaseLog_DatabaseLogID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Department</strong></td>
+                            <td>AK_Department_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Department</strong></td>
+                            <td>PK_Department_DepartmentID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>AK_Employee_LoginID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>AK_Employee_NationalIDNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>AK_Employee_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>290</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>IX_Employee_OrganizationLevel_OrganizationNode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>290</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>IX_Employee_OrganizationNode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>290</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Employee</strong></td>
+                            <td>PK_Employee_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeeDepartmentHistory</strong></td>
+                            <td>IX_EmployeeDepartmentHistory_DepartmentID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>296</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeeDepartmentHistory</strong></td>
+                            <td>IX_EmployeeDepartmentHistory_ShiftID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>296</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeeDepartmentHistory</strong></td>
+                            <td>PK_EmployeeDepartmentHistory_BusinessEntityID_StartDate_DepartmentID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.EmployeePayHistory</strong></td>
+                            <td>PK_EmployeePayHistory_BusinessEntityID_RateChangeDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.JobCandidate</strong></td>
+                            <td>IX_JobCandidate_BusinessEntityID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.JobCandidate</strong></td>
+                            <td>PK_JobCandidate_JobCandidateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>11</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Shift</strong></td>
+                            <td>AK_Shift_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Shift</strong></td>
+                            <td>AK_Shift_StartTime_EndTime</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>HumanResources.Shift</strong></td>
+                            <td>PK_Shift_ShiftID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>AK_Address_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>64</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>IX_Address_AddressLine1_AddressLine2_City_StateProvinceID_PostalCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>IX_Address_StateProvinceID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>34</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>PK_Address_AddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>342</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>PK_Address_AddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Address</strong></td>
+                            <td>PK_Address_AddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.AddressType</strong></td>
+                            <td>AK_AddressType_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.AddressType</strong></td>
+                            <td>AK_AddressType_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.AddressType</strong></td>
+                            <td>PK_AddressType_AddressTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntity</strong></td>
+                            <td>AK_BusinessEntity_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>67</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntity</strong></td>
+                            <td>PK_BusinessEntity_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>96</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>AK_BusinessEntityAddress_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>83</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>IX_BusinessEntityAddress_AddressID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>44</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>IX_BusinessEntityAddress_AddressTypeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>44</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityAddress</strong></td>
+                            <td>PK_BusinessEntityAddress_BusinessEntityID_AddressID_AddressTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>110</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>AK_BusinessEntityContact_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>IX_BusinessEntityContact_ContactTypeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>IX_BusinessEntityContact_PersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.BusinessEntityContact</strong></td>
+                            <td>PK_BusinessEntityContact_BusinessEntityID_PersonID_ContactTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.ContactType</strong></td>
+                            <td>AK_ContactType_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>20</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.ContactType</strong></td>
+                            <td>PK_ContactType_ContactTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>20</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.CountryRegion</strong></td>
+                            <td>AK_CountryRegion_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.CountryRegion</strong></td>
+                            <td>PK_CountryRegion_CountryRegionCode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.EmailAddress</strong></td>
+                            <td>IX_EmailAddress_EmailAddress</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.EmailAddress</strong></td>
+                            <td>PK_EmailAddress_BusinessEntityID_EmailAddressID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>249</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Password</strong></td>
+                            <td>PK_Password_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>235</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>AK_Person_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>65</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>IX_Person_LastName_FirstName_MiddleName</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>103</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PK_Person_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>8</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PK_Person_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PK_Person_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PXML_Person_AddContact</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>PXML_Person_Demographics</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPATH_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>14</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPATH_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPROPERTY_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>14</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLPROPERTY_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLVALUE_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>14</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.Person</strong></td>
+                            <td>XMLVALUE_Person_Demographics</td>
+                            <td>XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.PersonPhone</strong></td>
+                            <td>IX_PersonPhone_PhoneNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>120</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.PersonPhone</strong></td>
+                            <td>PK_PersonPhone_BusinessEntityID_PhoneNumber_PhoneNumberTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>148</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.PhoneNumberType</strong></td>
+                            <td>PK_PhoneNumberType_PhoneNumberTypeID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.StateProvince</strong></td>
+                            <td>AK_StateProvince_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>181</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.StateProvince</strong></td>
+                            <td>AK_StateProvince_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>181</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.StateProvince</strong></td>
+                            <td>AK_StateProvince_StateProvinceCode_CountryRegionCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>181</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.StateProvince</strong></td>
+                            <td>PK_StateProvince_StateProvinceID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Person.vStateProvinceCountryRegion</strong></td>
+                            <td>IX_vStateProvinceCountryRegion</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>AK_BillOfMaterials_ProductAssemblyID_ComponentID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>20</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>IX_BillOfMaterials_UnitMeasureCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.BillOfMaterials</strong></td>
+                            <td>PK_BillOfMaterials_BillOfMaterialsID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>9</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Culture</strong></td>
+                            <td>AK_Culture_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>8</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Culture</strong></td>
+                            <td>PK_Culture_CultureID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>8</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>AK_Document_DocumentLevel_DocumentNode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>AK_Document_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>IX_Document_FileName_Revision</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>PK_Document_DocumentNode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Document</strong></td>
+                            <td>UQ__Document__F73921F7C81C642F</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Illustration</strong></td>
+                            <td>PK_Illustration_IllustrationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Location</strong></td>
+                            <td>AK_Location_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>14</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Location</strong></td>
+                            <td>PK_Location_LocationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>14</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_ProductNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>AK_Product_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.Product</strong></td>
+                            <td>PK_Product_ProductID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>13</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductCategory</strong></td>
+                            <td>AK_ProductCategory_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductCategory</strong></td>
+                            <td>AK_ProductCategory_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductCategory</strong></td>
+                            <td>PK_ProductCategory_ProductCategoryID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductCostHistory</strong></td>
+                            <td>PK_ProductCostHistory_ProductID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductDescription</strong></td>
+                            <td>AK_ProductDescription_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductDescription</strong></td>
+                            <td>PK_ProductDescription_ProductDescriptionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>18</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductDocument</strong></td>
+                            <td>PK_ProductDocument_ProductID_DocumentNode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>32</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductInventory</strong></td>
+                            <td>PK_ProductInventory_ProductID_LocationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductListPriceHistory</strong></td>
+                            <td>PK_ProductListPriceHistory_ProductID_StartDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>AK_ProductModel_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>128</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>AK_ProductModel_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>128</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PK_ProductModel_ProductModelID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>12</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PXML_ProductModel_CatalogDescription</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModel</strong></td>
+                            <td>PXML_ProductModel_Instructions</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>12</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModelIllustration</strong></td>
+                            <td>PK_ProductModelIllustration_ProductModelID_IllustrationID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductModelProductDescriptionCulture</strong></td>
+                            <td>PK_ProductModelProductDescriptionCulture_ProductModelID_ProductDescriptionID_CultureID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>4</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductPhoto</strong></td>
+                            <td>PK_ProductPhoto_ProductPhotoID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>50</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductProductPhoto</strong></td>
+                            <td>PK_ProductProductPhoto_ProductID_ProductPhotoID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductReview</strong></td>
+                            <td>IX_ProductReview_ProductID_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductReview</strong></td>
+                            <td>PK_ProductReview_ProductReviewID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductSubcategory</strong></td>
+                            <td>AK_ProductSubcategory_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>37</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductSubcategory</strong></td>
+                            <td>AK_ProductSubcategory_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>37</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ProductSubcategory</strong></td>
+                            <td>PK_ProductSubcategory_ProductSubcategoryID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>37</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ScrapReason</strong></td>
+                            <td>AK_ScrapReason_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.ScrapReason</strong></td>
+                            <td>PK_ScrapReason_ScrapReasonID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>IX_TransactionHistory_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>197</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>IX_TransactionHistory_ReferenceOrderID_ReferenceOrderLineID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>253</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistory</strong></td>
+                            <td>PK_TransactionHistory_TransactionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>IX_TransactionHistoryArchive_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>155</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>IX_TransactionHistoryArchive_ReferenceOrderID_ReferenceOrderLineID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>199</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.TransactionHistoryArchive</strong></td>
+                            <td>PK_TransactionHistoryArchive_TransactionID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>620</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.UnitMeasure</strong></td>
+                            <td>AK_UnitMeasure_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>38</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.UnitMeasure</strong></td>
+                            <td>PK_UnitMeasure_UnitMeasureCode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>38</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.vProductAndDescription</strong></td>
+                            <td>IX_vProductAndDescription</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>70</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>IX_WorkOrder_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>126</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>IX_WorkOrder_ScrapReasonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>108</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrder</strong></td>
+                            <td>PK_WorkOrder_WorkOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>523</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrderRouting</strong></td>
+                            <td>IX_WorkOrderRouting_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>133</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Production.WorkOrderRouting</strong></td>
+                            <td>PK_WorkOrderRouting_WorkOrderID_ProductID_OperationSequence</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ProductVendor</strong></td>
+                            <td>IX_ProductVendor_BusinessEntityID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>460</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ProductVendor</strong></td>
+                            <td>IX_ProductVendor_UnitMeasureCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ProductVendor</strong></td>
+                            <td>PK_ProductVendor_ProductID_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderDetail</strong></td>
+                            <td>IX_PurchaseOrderDetail_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>20</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderDetail</strong></td>
+                            <td>PK_PurchaseOrderDetail_PurchaseOrderID_PurchaseOrderDetailID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>64</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>IX_PurchaseOrderHeader_EmployeeID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>IX_PurchaseOrderHeader_VendorID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>7</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.PurchaseOrderHeader</strong></td>
+                            <td>PK_PurchaseOrderHeader_PurchaseOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>42</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ShipMethod</strong></td>
+                            <td>AK_ShipMethod_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ShipMethod</strong></td>
+                            <td>AK_ShipMethod_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.ShipMethod</strong></td>
+                            <td>PK_ShipMethod_ShipMethodID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>5</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.Vendor</strong></td>
+                            <td>AK_Vendor_AccountNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>104</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Purchasing.Vendor</strong></td>
+                            <td>PK_Vendor_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CountryRegionCurrency</strong></td>
+                            <td>IX_CountryRegionCurrency_CurrencyCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>109</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CountryRegionCurrency</strong></td>
+                            <td>PK_CountryRegionCurrency_CountryRegionCode_CurrencyCode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>109</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CreditCard</strong></td>
+                            <td>AK_CreditCard_CardNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>100</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CreditCard</strong></td>
+                            <td>PK_CreditCard_CreditCardID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>187</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Currency</strong></td>
+                            <td>AK_Currency_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>105</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Currency</strong></td>
+                            <td>PK_Currency_CurrencyCode</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>105</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CurrencyRate</strong></td>
+                            <td>AK_CurrencyRate_CurrencyRateDate_FromCurrencyCode_ToCurrencyCode</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>51</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.CurrencyRate</strong></td>
+                            <td>PK_CurrencyRate_CurrencyRateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>96</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>AK_Customer_AccountNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>59</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>AK_Customer_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>64</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>IX_Customer_TerritoryID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>35</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Customer</strong></td>
+                            <td>PK_Customer_CustomerID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>121</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.PersonCreditCard</strong></td>
+                            <td>PK_PersonCreditCard_BusinessEntityID_CreditCardID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>60</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>AK_SalesOrderDetail_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>IX_SalesOrderDetail_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>271</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderDetail</strong></td>
+                            <td>PK_SalesOrderDetail_SalesOrderID_SalesOrderDetailID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>AK_SalesOrderHeader_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>102</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>AK_SalesOrderHeader_SalesOrderNumber</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>109</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>IX_SalesOrderHeader_CustomerID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>55</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>IX_SalesOrderHeader_SalesPersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>55</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeader</strong></td>
+                            <td>PK_SalesOrderHeader_SalesOrderID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesOrderHeaderSalesReason</strong></td>
+                            <td>PK_SalesOrderHeaderSalesReason_SalesOrderID_SalesReasonID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>86</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesPerson</strong></td>
+                            <td>AK_SalesPerson_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>17</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesPerson</strong></td>
+                            <td>PK_SalesPerson_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>17</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesPersonQuotaHistory</strong></td>
+                            <td>AK_SalesPersonQuotaHistory_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>163</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesPersonQuotaHistory</strong></td>
+                            <td>PK_SalesPersonQuotaHistory_BusinessEntityID_QuotaDate</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesReason</strong></td>
+                            <td>PK_SalesReason_SalesReasonID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTaxRate</strong></td>
+                            <td>AK_SalesTaxRate_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>29</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTaxRate</strong></td>
+                            <td>AK_SalesTaxRate_StateProvinceID_TaxType</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>29</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTaxRate</strong></td>
+                            <td>PK_SalesTaxRate_SalesTaxRateID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>29</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTerritory</strong></td>
+                            <td>AK_SalesTerritory_Name</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTerritory</strong></td>
+                            <td>AK_SalesTerritory_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTerritory</strong></td>
+                            <td>PK_SalesTerritory_TerritoryID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTerritoryHistory</strong></td>
+                            <td>AK_SalesTerritoryHistory_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>17</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SalesTerritoryHistory</strong></td>
+                            <td>PK_SalesTerritoryHistory_BusinessEntityID_StartDate_TerritoryID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>17</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.ShoppingCartItem</strong></td>
+                            <td>IX_ShoppingCartItem_ShoppingCartID_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.ShoppingCartItem</strong></td>
+                            <td>PK_ShoppingCartItem_ShoppingCartItemID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOffer</strong></td>
+                            <td>AK_SpecialOffer_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOffer</strong></td>
+                            <td>PK_SpecialOffer_SpecialOfferID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>16</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOfferProduct</strong></td>
+                            <td>AK_SpecialOfferProduct_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOfferProduct</strong></td>
+                            <td>IX_SpecialOfferProduct_ProductID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>538</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.SpecialOfferProduct</strong></td>
+                            <td>PK_SpecialOfferProduct_SpecialOfferID_ProductID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>AK_Store_rowguid</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>IX_Store_SalesPersonID</td>
+                            <td>NONCLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>PK_Store_BusinessEntityID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>101</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>Sales.Store</strong></td>
+                            <td>PXML_Store_Demographics</td>
+                            <td>PRIMARY XML INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>1</td>
+                            <td>64</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>                         <tr>
+                            <td><strong>dbo.ErrorLog</strong></td>
+                            <td>PK_ErrorLog_ErrorLogID</td>
+                            <td>CLUSTERED INDEX</td>
+                            <td><span class="status-success">0%</span></td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td><span class="badge badge-success">OK</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE DISCO (EXISTENTE) -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">💾</span>
+                Espacio en Disco
+            </h2>
+                        <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th>Tipo</th>
+                            <th>Tamaño (MB)</th>
+                            <th>Usado (MB)</th>
+                            <th>Libre (MB)</th>
+                            <th>% Usado</th>
+                            <th>Ruta Física</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                                <tr>
+                            <td><strong>AdventureWorks2022</strong></td>
+                            <td>ROWS</td>
+                            <td>200.00</td>
+                            <td>198.06</td>
+                            <td>1.94</td>
+                            <td><span class="status-critical">99.03%</span></td>
+                            <td><small>C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\AdventureWorks2022.mdf</small></td>
+                        </tr>                         <tr>
+                            <td><strong>AdventureWorks2022_log</strong></td>
+                            <td>LOG</td>
+                            <td>72.00</td>
+                            <td>15.17</td>
+                            <td>56.83</td>
+                            <td><span class="status-success">21.07%</span></td>
+                            <td><small>C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\DATA\AdventureWorks2022_log.ldf</small></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE BACKUPS (EXISTENTE) -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🔄</span>
+                Historial de Backups
+            </h2>
+                        <div class="table-container compact-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha Inicio</th>
+                            <th>Fecha Fin</th>
+                            <th>Tipo</th>
+                            <th>Tamaño (MB)</th>
+                            <th>Horas desde Backup</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                                <tr>
+                            <td>10/02/2025 10:59:21</td>
+                            <td>10/02/2025 10:59:22</td>
+                            <td>Completo</td>
+                            <td>200.09</td>
+                            <td><span class="status-warning">30h</span></td>
+                        </tr>                         <tr>
+                            <td>10/02/2025 10:45:39</td>
+                            <td>10/02/2025 10:45:40</td>
+                            <td>Completo</td>
+                            <td>200.09</td>
+                            <td><span class="status-warning">30h</span></td>
+                        </tr>                         <tr>
+                            <td>05/23/2023 11:56:14</td>
+                            <td>05/23/2023 11:56:15</td>
+                            <td>Completo</td>
+                            <td>200.09</td>
+                            <td><span class="status-warning">20741h</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE CONSULTAS COSTOSAS (EXISTENTE) -->
+        <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">⚡</span>
+                Consultas más Costosas (CPU)
+            </h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>CPU Total (s)</th>
+                            <th>Ejecuciones</th>
+                            <th>CPU Promedio (s)</th>
+                            <th>Última Ejecución</th>
+                            <th>Consulta SQL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                                <tr>
+                            <td><span class="status-warning">2.45</span></td>
+                            <td>150</td>
+                            <td>0.0163</td>
+                            <td>2025-10-03 16:50:57</td>
+                            <td><small>SELECT * FROM Sales.SalesOrderHeader WITH(NOLOCK) WHERE OrderDate > '2023-01-01'</small></td>
+                        </tr>
+                        <tr>
+                            <td><span class="status-success">1.23</span></td>
+                            <td>89</td>
+                            <td>0.0138</td>
+                            <td>2025-10-03 16:50:57</td>
+                            <td><small>UPDATE Production.Product SET ListPrice = ListPrice * 1.1 WHERE ProductCategoryID = 2</small></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ALERTAS MEJORADAS -->
+                <section class="section">
+            <h2 class="section-title">
+                <span class="section-icon">🚨</span>
+                Alertas y Recomendaciones
+            </h2>
+            <div class='alert-critical'>⚠️ 26 índice(s) necesitan REBUILD urgente - fragmentación superior al 30%</div><div class='alert-warning'>🔄 14 índice(s) necesitan REORGANIZE - fragmentación entre 10% y 30%</div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <p>Reporte generado con dbatools - 10/03/2025 16:50:57</p>
+            <p>DBATools Proyecto 1 - Sistema de Monitoreo SQL Server by Santiago Guevara</p>
+            <p><strong>NUEVAS FUNCIONES:</strong> Verificación de parches • Reporte de discos • Monitoreo de jobs de backup</p>
+        </footer>
+    </div>
+</body>
+</html>

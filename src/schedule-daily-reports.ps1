@@ -1,4 +1,4 @@
-# schedule-daily-reports.ps1
+﻿# schedule-daily-reports.ps1
 # Programa la ejecución automática diaria a las 6 AM
 # Ubicación: En la raíz del proyecto, junto a main.ps1
 
