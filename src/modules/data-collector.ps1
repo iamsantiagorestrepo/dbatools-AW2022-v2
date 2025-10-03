@@ -426,8 +426,8 @@ function Get-DailyDiskReport {
                 Send-DbaNotification -Subject "⚠️ Advertencia - Espacio en disco $instance" -Body $warningMessage -Type "Warning"
             }
 
-            # Mostrar resumen por servidor
-            Write-Host "   📊 Resumen discos $instance:" -ForegroundColor White
+            # Mostrar resumen por servidor - LÍNEA CORREGIDA
+            Write-Host "   📊 Resumen discos $instance" -ForegroundColor White
             Write-Host "      • Total unidades: $($detailedDisks.Count)" -ForegroundColor Gray
             Write-Host "      • Puntos de montaje: $(($detailedDisks | Where-Object { $_.IsMountPoint }).Count)" -ForegroundColor Gray
             Write-Host "      • Estado crítico: $($criticalDisks.Count)" -ForegroundColor Red
@@ -561,11 +561,11 @@ function Get-BackupJobsHealthReport {
                 }
             }
 
-            # Mostrar resumen por servidor
+            # Mostrar resumen por servidor - LÍNEA CORREGIDA
             $totalJobs = $backupJobStatus.JobStatusReport.Count
             $failedJobs = ($backupJobStatus.JobStatusReport | Where-Object { $_.JobStatus -eq "Failed" }).Count
 
-            Write-Host "   📊 Resumen jobs $instance:" -ForegroundColor White
+            Write-Host "   📊 Resumen jobs $instance" -ForegroundColor White
             Write-Host "      • Total jobs: $totalJobs" -ForegroundColor Gray
             Write-Host "      • Jobs con error: $failedJobs" -ForegroundColor $(if ($failedJobs -gt 0) { "Red" } else { "Green" })
         }

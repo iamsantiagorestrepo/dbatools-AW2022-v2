@@ -1,19 +1,19 @@
 ﻿# --- CONFIGURACIÓN PRINCIPAL ---
 $ProjectPath = "C:\Users\santiago.guevara\dbatools-AW2022-v2"
-$ConfigPath = Join-Path $ProjectPath "config\settings.json"
+$ConfigPath = Join-Path $ProjectPath "config\settings.json"  # En raíz
 $Config = Get-Content $ConfigPath | ConvertFrom-Json
 
 $SqlInstance = $Config.SqlInstance
 $DatabaseName = $Config.Database
-$ReportPath = Join-Path $ProjectPath "reports"
-$CssFile = Join-Path $ProjectPath "templates\style.css"
+$ReportPath = Join-Path $ProjectPath "src\reports"
+$CssFile = Join-Path $ProjectPath "src\templates\style.css"
 
 # --- IMPORTAR MÓDULOS Y FUNCIONES ---
 try {
     Import-Module dbatools -ErrorAction Stop
 
     # Importar módulos locales - RUTAS CORREGIDAS
-    $modulesPath = Join-Path $ProjectPath "modules"
+    $modulesPath = Join-Path $ProjectPath "src\modules"
     . (Join-Path $modulesPath "data-collector.ps1")
     . (Join-Path $modulesPath "html-generator.ps1")
     . (Join-Path $modulesPath "dbatools-functions.ps1")
