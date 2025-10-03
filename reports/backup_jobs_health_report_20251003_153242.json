@@ -1,0 +1,27 @@
+﻿{
+    "localhost":  {
+                      "JobStatusReport":  [
+                                              {
+                                                  "SqlInstance":  "localhost",
+                                                  "JobName":  "No se encontraron jobs de backup",
+                                                  "JobEnabled":  false,
+                                                  "LastRunDate":  "N/A",
+                                                  "LastRunStatus":  "Unknown",
+                                                  "JobStatus":  "Warning",
+                                                  "FailedRunsLast24h":  0,
+                                                  "ErrorMessage":  "No se detectaron jobs con nombre o descripción relacionada a backup",
+                                                  "CheckDate":  {
+                                                                    "value":  "\/Date(1759523562711)\/",
+                                                                    "DisplayHint":  2,
+                                                                    "DateTime":  "Friday, October 3, 2025 3:32:42 PM"
+                                                                }
+                                              }
+                                          ],
+                      "CheckDate":  {
+                                        "value":  "\/Date(1759523562715)\/",
+                                        "DisplayHint":  2,
+                                        "DateTime":  "Friday, October 3, 2025 3:32:42 PM"
+                                    },
+                      "HasErrors":  false
+                  }
+}

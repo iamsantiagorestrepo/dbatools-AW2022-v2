@@ -1,0 +1,30 @@
+﻿{
+    "Summary":  {
+                    "TotalServers":  1,
+                    "UpToDateServers":  0,
+                    "OutdatedServers":  0,
+                    "CheckDate":  {
+                                      "value":  "\/Date(1759523527868)\/",
+                                      "DisplayHint":  2,
+                                      "DateTime":  "Friday, October 3, 2025 3:32:07 PM"
+                                  }
+                },
+    "localhost":  {
+                      "SqlInstance":  "localhost",
+                      "InstanceName":  "N/A",
+                      "Version":  "N/A",
+                      "BuildNumber":  "N/A",
+                      "Edition":  "N/A",
+                      "ProductLevel":  "N/A",
+                      "CurrentBuildInfo":  null,
+                      "IsUpToDate":  false,
+                      "PatchesBehind":  -1,
+                      "LatestAvailableBuild":  null,
+                      "CheckDate":  {
+                                        "value":  "\/Date(1759523527793)\/",
+                                        "DisplayHint":  2,
+                                        "DateTime":  "Friday, October 3, 2025 3:32:07 PM"
+                                    },
+                      "Error":  "The term \u0027Get-DbaInstance\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                  }
+}

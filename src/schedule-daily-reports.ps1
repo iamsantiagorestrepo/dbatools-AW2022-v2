@@ -7,8 +7,8 @@ param(
     [string]$TaskName = "DBATools-DailyReport"
 )
 
-# El script main.ps1 está en la raíz del proyecto
-$ScriptPath = Join-Path $ProjectPath "main.ps1"
+# El script main.ps1 está en src\main.ps1 - CORREGIDO
+$ScriptPath = Join-Path $ProjectPath "src\main.ps1"
 
 Write-Host "🚀 PROGRAMADOR DE TAREAS DBATOOLS-AW2022-V2" -ForegroundColor Cyan
 Write-Host "=" * 50 -ForegroundColor Cyan
@@ -29,9 +29,10 @@ try {
 
     Write-Host "✅ Verificando permisos de administrador..." -ForegroundColor Green
 
-    # Verificar si el script main.ps1 existe
+    # Verificar si el script main.ps1 existe - CORREGIDO
     if (-not (Test-Path $ScriptPath)) {
         Write-Host "❌ No se encuentra el script main.ps1 en: $ScriptPath" -ForegroundColor Red
+        Write-Host "   Asegúrese de que main.ps1 esté en la carpeta src" -ForegroundColor Yellow
         exit 1
     }
 
@@ -84,7 +85,7 @@ try {
     Write-Host "   • Nombre: $TaskName" -ForegroundColor White
     Write-Host "   • Ejecución: Diaria a las 6:00 AM" -ForegroundColor White
     Write-Host "   • Usuario: SYSTEM (Servicio)" -ForegroundColor White
-    Write-Host "   • Script: main.ps1" -ForegroundColor White
+    Write-Host "   • Script: src\main.ps1" -ForegroundColor White
     Write-Host "   • Modo: Ventana oculta" -ForegroundColor White
 
     # Mostrar información de la tarea creada
