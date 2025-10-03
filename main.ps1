@@ -12,7 +12,7 @@ $CssFile = Join-Path $ProjectPath "templates\style.css"
 try {
     Import-Module dbatools -ErrorAction Stop
 
-    # Importar módulos locales
+    # Importar módulos locales - RUTAS CORREGIDAS
     $modulesPath = Join-Path $ProjectPath "modules"
     . (Join-Path $modulesPath "data-collector.ps1")
     . (Join-Path $modulesPath "html-generator.ps1")
