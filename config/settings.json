@@ -1,0 +1,33 @@
+﻿{
+    "SqlInstance": "localhost",
+    "Database": "AdventureWorks2022",
+    "ReportPath": "C:\\DBAToolsProyecto1\\reports",
+    "TopQueriesLimit": 10,
+    "BackupDaysHistory": 7,
+    "FragmentationThresholds": {
+        "Reorganize": 10,
+        "Rebuild": 30
+    },
+    "SpaceUsageThresholds": {
+        "Warning": 80,
+        "Critical": 90
+    },
+    "EmailSettings": {
+        "EnableEmail": false,
+        "SmtpServer": "smtp.gmail.com",
+        "Port": 587,
+        "EnableSSL": true,
+        "From": "tu-email@gmail.com",
+        "To": [
+            "destinatario@empresa.com"
+        ],
+        "Subject": "Reporte de Salud de Base de Datos - {0}"
+    },
+    "AlertSettings": {
+        "EnableAlerts": true,
+        "CriticalSpacePercent": 90,
+        "WarningSpacePercent": 80,
+        "MaxFragmentationRebuild": 30,
+        "MaxFragmentationReorganize": 10
+    }
+}
