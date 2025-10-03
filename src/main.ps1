@@ -5,7 +5,7 @@ $Config = Get-Content $ConfigPath | ConvertFrom-Json
 
 $SqlInstance = $Config.SqlInstance
 $DatabaseName = $Config.Database
-$ReportPath = Join-Path $ProjectPath "src\reports"
+$ReportPath = Join-Path $ProjectPath "reports"
 $CssFile = Join-Path $ProjectPath "src\templates\style.css"
 
 # --- IMPORTAR MÓDULOS Y FUNCIONES ---
