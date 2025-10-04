@@ -1,31 +1,104 @@
-﻿# dbatools-functions.ps1
-# Funciones básicas de dbatools - herramientas y utilidades
+﻿# dbatools-functions.ps1 (OPTIMIZADO)
+# Funciones básicas y utilidades de dbatools
+# ============================================================================
+
+# ============================================================================
+# SECCIÓN 1: FUNCIONES DE CONEXIÓN Y PRUEBAS
+# ============================================================================
 
 function Test-SQLConnection {
-    param([string]$SqlInstance)
+    <#
+    .SYNOPSIS
+    Prueba la conexión a una instancia SQL Server.
+    .PARAMETER SqlInstance
+    Nombre de la instancia SQL Server a probar.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance
+    )
 
     try {
         Write-Host "   🔌 Probando conexión a $SqlInstance..." -ForegroundColor Yellow
-        $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query "SELECT @@SERVERNAME AS ServerName" -ErrorAction Stop
+        $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query "SELECT @@SERVERNAME AS ServerName, GETDATE() AS CurrentTime" -ErrorAction Stop
         Write-Host "   ✅ Conexión exitosa a $SqlInstance" -ForegroundColor Green
-        return $true
+        return @{
+            Success     = $true
+            ServerName  = $result.ServerName
+            CurrentTime = $result.CurrentTime
+            Message     = "Conexión exitosa"
+        }
     }
     catch {
         Write-Error "   ❌ Error de conexión: $($_.Exception.Message)"
-        return $false
+        return @{
+            Success = $false
+            Message = $_.Exception.Message
+        }
     }
 }
 
+function Test-DatabaseConnectivity {
+    <#
+    .SYNOPSIS
+    Prueba la conectividad a una base de datos específica.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DatabaseName
+    )
+
+    try {
+        Write-Host "   🔌 Probando conectividad a $DatabaseName..." -ForegroundColor Yellow
+        $testQuery = "SELECT DB_NAME() AS DatabaseName, GETDATE() AS CurrentTime, @@VERSION AS Version"
+        $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database $DatabaseName -Query $testQuery -ErrorAction Stop
+        Write-Host "   ✅ Conexión a $DatabaseName exitosa" -ForegroundColor Green
+        return @{
+            Success      = $true
+            DatabaseName = $result.DatabaseName
+            CurrentTime  = $result.CurrentTime
+            Message      = "Conexión exitosa a la base de datos"
+        }
+    }
+    catch {
+        Write-Error "   ❌ Error conectando a la base de datos '$DatabaseName': $($_.Exception.Message)"
+        return @{
+            Success = $false
+            Message = $_.Exception.Message
+        }
+    }
+}
+
+# ============================================================================
+# SECCIÓN 2: INFORMACIÓN BÁSICA DEL SERVIDOR
+# ============================================================================
+
 function Get-BasicServerInfo {
-    param([string]$SqlInstance)
+    <#
+    .SYNOPSIS
+    Obtiene información básica del servidor SQL.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance
+    )
 
     try {
         Write-Host "   🔍 Obteniendo información básica del servidor..." -ForegroundColor Yellow
         $query = @"
 SELECT
     @@SERVERNAME AS ServerName,
+    SERVERPROPERTY('MachineName') AS MachineName,
+    SERVERPROPERTY('InstanceName') AS InstanceName,
+    SERVERPROPERTY('ProductVersion') AS ProductVersion,
+    SERVERPROPERTY('ProductLevel') AS ProductLevel,
+    SERVERPROPERTY('Edition') AS Edition,
     @@VERSION AS SQLVersion,
-    DB_NAME() AS CurrentDatabase
+    DB_NAME() AS CurrentDatabase,
+    GETDATE() AS CurrentTime
 "@
         $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
         Write-Host "   ✅ Información básica obtenida" -ForegroundColor Green
@@ -38,18 +111,34 @@ SELECT
 }
 
 function Get-DatabaseList {
-    param([string]$SqlInstance)
+    <#
+    .SYNOPSIS
+    Obtiene lista de bases de datos en el servidor.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$OnlineOnly = $true
+    )
 
     try {
         Write-Host "   📋 Obteniendo lista de bases de datos..." -ForegroundColor Yellow
+
+        $whereClause = if ($OnlineOnly) { "WHERE state = 0  -- Solo bases de datos online" } else { "" }
+
         $query = @"
 SELECT
     name AS DatabaseName,
+    database_id AS DatabaseID,
     state_desc AS Status,
     recovery_model_desc AS RecoveryModel,
-    create_date AS CreateDate
+    compatibility_level AS CompatibilityLevel,
+    create_date AS CreateDate,
+    CAST((size * 8.0 / 1024) AS DECIMAL(10,2)) AS SizeMB
 FROM sys.databases
-WHERE state = 0  -- Solo bases de datos online
+$whereClause
 ORDER BY name
 "@
         $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
@@ -62,13 +151,88 @@ ORDER BY name
     }
 }
 
-function Backup-DatabaseSimple {
-    param([string]$SqlInstance, [string]$DatabaseName, [string]$BackupPath)
+function Get-SQLServices {
+    <#
+    .SYNOPSIS
+    Obtiene información de servicios SQL Server en el equipo.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName
+    )
 
     try {
-        Write-Host "   💾 Realizando backup de $DatabaseName..." -ForegroundColor Yellow
-        $backupResult = Backup-DbaDatabase -SqlInstance $SqlInstance -Database $DatabaseName -Path $BackupPath -Type Full -CompressBackup
+        Write-Host "   🔧 Obteniendo servicios de SQL Server..." -ForegroundColor Yellow
+        $services = Get-DbaService -ComputerName $ComputerName -ErrorAction Stop
+        Write-Host "   ✅ Servicios obtenidos ($($services.Count) servicios)" -ForegroundColor Green
+
+        return $services | Select-Object @{
+            Name       = 'ServiceName'
+            Expression = { $_.ServiceName }
+        }, @{
+            Name       = 'DisplayName'
+            Expression = { $_.DisplayName }
+        }, @{
+            Name       = 'Status'
+            Expression = { $_.State }
+        }, @{
+            Name       = 'StartMode'
+            Expression = { $_.StartMode }
+        }, @{
+            Name       = 'ServiceAccount'
+            Expression = { $_.StartName }
+        }
+    }
+    catch {
+        Write-Warning "   ⚠️  No se pudieron obtener servicios: $($_.Exception.Message)"
+        return @()
+    }
+}
+
+# ============================================================================
+# SECCIÓN 3: OPERACIONES DE BACKUP
+# ============================================================================
+
+function Backup-DatabaseSimple {
+    <#
+    .SYNOPSIS
+    Realiza un backup simple de una base de datos.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DatabaseName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BackupPath,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Full', 'Differential', 'Log')]
+        [string]$BackupType = 'Full',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$CompressBackup = $true
+    )
+
+    try {
+        Write-Host "   💾 Realizando backup $BackupType de $DatabaseName..." -ForegroundColor Yellow
+
+        $backupParams = @{
+            SqlInstance    = $SqlInstance
+            Database       = $DatabaseName
+            Path           = $BackupPath
+            Type           = $BackupType
+            CompressBackup = $CompressBackup
+        }
+
+        $backupResult = Backup-DbaDatabase @backupParams -ErrorAction Stop
+
         Write-Host "   ✅ Backup completado exitosamente" -ForegroundColor Green
+        Write-Host "      Archivo: $($backupResult.Path)" -ForegroundColor Gray
+        Write-Host "      Tamaño: $([math]::Round($backupResult.TotalSize / 1MB, 2)) MB" -ForegroundColor Gray
+
         return $backupResult
     }
     catch {
@@ -77,14 +241,46 @@ function Backup-DatabaseSimple {
     }
 }
 
-function Get-ServerSpace {
-    param([string]$SqlInstance)
+# ============================================================================
+# SECCIÓN 4: INFORMACIÓN DE DISCOS (SIMPLIFICADA)
+# ============================================================================
+
+function Get-ServerDiskSpace {
+    <#
+    .SYNOPSIS
+    Obtiene información de espacio en disco del servidor (versión simple).
+    .DESCRIPTION
+    Función simplificada para obtener espacio en disco.
+    Para análisis detallado usar Get-DiskSpaceInfo del data-collector.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance
+    )
 
     try {
         Write-Host "   💽 Obteniendo espacio en disco del servidor..." -ForegroundColor Yellow
-        $spaceInfo = Get-DbaDiskSpace -SqlInstance $SqlInstance
-        Write-Host "   ✅ Información de espacio obtenida" -ForegroundColor Green
-        return $spaceInfo
+        $spaceInfo = Get-DbaDiskSpace -SqlInstance $SqlInstance -ErrorAction Stop
+
+        $formattedSpace = $spaceInfo | Select-Object @{
+            Name       = 'DiskName'
+            Expression = { $_.Name }
+        }, @{
+            Name       = 'TotalGB'
+            Expression = { [math]::Round($_.Capacity / 1GB, 2) }
+        }, @{
+            Name       = 'FreeGB'
+            Expression = { [math]::Round($_.Free / 1GB, 2) }
+        }, @{
+            Name       = 'UsedGB'
+            Expression = { [math]::Round(($_.Capacity - $_.Free) / 1GB, 2) }
+        }, @{
+            Name       = 'PercentFree'
+            Expression = { [math]::Round(($_.Free / $_.Capacity) * 100, 2) }
+        }
+
+        Write-Host "   ✅ Información de espacio obtenida ($($formattedSpace.Count) discos)" -ForegroundColor Green
+        return $formattedSpace
     }
     catch {
         Write-Warning "   ⚠️  No se pudo obtener información de espacio: $($_.Exception.Message)"
@@ -92,354 +288,241 @@ function Get-ServerSpace {
     }
 }
 
-function Test-DatabaseConnectivity {
-    param([string]$SqlInstance, [string]$DatabaseName)
+# ============================================================================
+# SECCIÓN 5: UTILIDADES Y HELPERS
+# ============================================================================
 
-    try {
-        Write-Host "   🔌 Probando conectividad a $DatabaseName..." -ForegroundColor Yellow
-        $testQuery = "SELECT DB_NAME() AS DatabaseName, GETDATE() AS CurrentTime"
-        $result = Invoke-DbaQuery -SqlInstance $SqlInstance -Database $DatabaseName -Query $testQuery -ErrorAction Stop
-        Write-Host "   ✅ Conexión a $DatabaseName exitosa" -ForegroundColor Green
-        return $true
-    }
-    catch {
-        # CORRECCIÓN: Usar comillas dobles o formato diferente para Write-Error
-        Write-Error "   ❌ Error conectando a la base de datos '$DatabaseName': $($_.Exception.Message)"
-        return $false
-    }
+function Show-AvailableFunctions {
+    <#
+    .SYNOPSIS
+    Muestra todas las funciones disponibles en este módulo.
+    #>
+    Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║  FUNCIONES DISPONIBLES - DBATOOLS-FUNCTIONS               ║" -ForegroundColor Cyan
+    Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+    Write-Host "`n📦 CONEXIÓN Y PRUEBAS:" -ForegroundColor Yellow
+    Write-Host "   • Test-SQLConnection" -ForegroundColor White
+    Write-Host "   • Test-DatabaseConnectivity" -ForegroundColor White
+
+    Write-Host "`n📊 INFORMACIÓN DEL SERVIDOR:" -ForegroundColor Yellow
+    Write-Host "   • Get-BasicServerInfo" -ForegroundColor White
+    Write-Host "   • Get-DatabaseList" -ForegroundColor White
+    Write-Host "   • Get-SQLServices" -ForegroundColor White
+    Write-Host "   • Get-ServerDiskSpace" -ForegroundColor White
+
+    Write-Host "`n💾 OPERACIONES DE BACKUP:" -ForegroundColor Yellow
+    Write-Host "   • Backup-DatabaseSimple" -ForegroundColor White
+
+    Write-Host "`n🛠️  UTILIDADES:" -ForegroundColor Yellow
+    Write-Host "   • Show-AvailableFunctions" -ForegroundColor White
+    Write-Host "   • Export-ServerInventory" -ForegroundColor White
+
+    Write-Host "`n💡 NOTA: Para funciones avanzadas de análisis, usar data-collector.ps1" -ForegroundColor Gray
+    Write-Host ""
 }
 
-function Get-SQLServices {
-    param([string]$ComputerName)
-
-    try {
-        Write-Host "   🔧 Obteniendo servicios de SQL Server..." -ForegroundColor Yellow
-        $services = Get-DbaService -ComputerName $ComputerName
-        Write-Host "   ✅ Servicios obtenidos ($($services.Count) servicios)" -ForegroundColor Green
-        return $services
-    }
-    catch {
-        Write-Warning "   ⚠️  No se pudieron obtener servicios: $($_.Exception.Message)"
-        return @()
-    }
-}
-
-# NUEVAS FUNCIONES AÑADIDAS
-
-function Get-SQLServerVersionInfo {
-    param([string]$SqlInstance)
-
-    try {
-        Write-Host "   🔄 Verificando versión de SQL Server y parches..." -ForegroundColor Yellow
-
-        # Consulta directa para información de versión
-        $query = @"
-SELECT
-    SERVERPROPERTY('ProductVersion') AS ProductVersion,
-    SERVERPROPERTY('ProductLevel') AS ProductLevel,
-    SERVERPROPERTY('Edition') AS Edition,
-    SERVERPROPERTY('ProductUpdateLevel') AS ProductUpdateReference,
-    SERVERPROPERTY('BuildClrVersion') AS BuildClrVersion,
-    SERVERPROPERTY('Collation') AS Collation,
-    @@VERSION AS FullVersion
-"@
-        $versionInfo = Invoke-DbaQuery -SqlInstance $SqlInstance -Database "master" -Query $query -ErrorAction Stop
-
-        # Análisis básico de versión
-        $productVersion = $versionInfo.ProductVersion
-        $productLevel = $versionInfo.ProductLevel
-        $edition = $versionInfo.Edition
-
-        # Extraer el número de build de la versión del producto
-        $buildNumber = $productVersion.Split('.')[2]
-
-        # Determinar si necesita parches (lógica simple basada en nivel de producto)
-        $isUpToDate = $true
-        $patchesBehind = 0
-        $status = "Actualizado"
-        $recommendation = "El servidor está actualizado"
-
-        # Lógica simple para determinar estado de parches
-        if ($productLevel -eq "RTM") {
-            $isUpToDate = $false
-            $patchesBehind = 1
-            $status = "Necesita Service Pack"
-            $recommendation = "Se recomienda aplicar Service Pack más reciente"
-        }
-        elseif ($productLevel -eq "SP1") {
-            $isUpToDate = $false
-            $patchesBehind = 1
-            $status = "Necesita actualización"
-            $recommendation = "Se recomienda aplicar Service Pack más reciente"
-        }
-
-        # Para SQL Server 2022, verificar si está en la versión más reciente
-        if ($productVersion.StartsWith("16.")) {
-            # SQL Server 2022
-            # Build 16.0.1000.6 es RTM, builds más recientes tienen mejoras
-            if ($buildNumber -eq "1000") {
-                $isUpToDate = $false
-                $patchesBehind = 1
-                $status = "Necesita actualización acumulativa"
-                $recommendation = "Se recomienda aplicar la última actualización acumulativa para SQL Server 2022"
-            }
-        }
-
-        return @{
-            Version        = $productVersion
-            BuildNumber    = $buildNumber
-            ProductLevel   = $productLevel
-            Edition        = $edition
-            IsUpToDate     = $isUpToDate
-            PatchesBehind  = $patchesBehind
-            Status         = $status
-            Recommendation = $recommendation
-            FullVersion    = $versionInfo.FullVersion
-            Collation      = $versionInfo.Collation
-            CheckDate      = Get-Date
-        }
-    }
-    catch {
-        Write-Error "   ❌ Error verificando versión de SQL Server: $($_.Exception.Message)"
-        return @{
-            Version        = "N/A"
-            BuildNumber    = "N/A"
-            ProductLevel   = "N/A"
-            Edition        = "N/A"
-            IsUpToDate     = $false
-            PatchesBehind  = 999
-            Status         = "Error"
-            Recommendation = "No se pudo verificar el estado de parches"
-            FullVersion    = "N/A"
-            Collation      = "N/A"
-            CheckDate      = Get-Date
-        }
-    }
- }
-
-
-function Get-DetailedDiskSpaceLegacy {
-    param([string]$SqlInstance)
-
-    try {
-        Write-Host "   💽 Obteniendo información detallada de discos..." -ForegroundColor Yellow
-
-        # Obtener información de discos
-        $diskInfo = Get-DbaDiskSpace -SqlInstance $SqlInstance -ErrorAction Stop
-
-        # Procesar información para identificar puntos de montaje
-        $detailedDisks = @()
-
-        foreach ($disk in $diskInfo) {
-            $isMountPoint = $false
-            $mountPointInfo = ""
-
-            # Detectar si es punto de montaje
-            if ($disk.Name -match "\\[A-Z]\\" -and $disk.Name -notmatch "^[A-Z]:\\$") {
-                $isMountPoint = $true
-                $mountPointInfo = "Punto de Montaje"
-            }
-            elseif ($disk.Name -eq ($disk.Name.Substring(0, 2) + "\")) {
-                $mountPointInfo = "Disco Principal"
-            }
-            else {
-                $mountPointInfo = "Carpeta/Unidad"
-            }
-
-            # Calcular porcentaje de uso
-            $percentUsed = 0
-            if ($disk.Size -gt 0) {
-                $percentUsed = [math]::Round(($disk.Used / $disk.Size) * 100, 2)
-            }
-
-            # Determinar estado de alerta
-            $alertLevel = "Normal"
-            if ($percentUsed -ge 90) {
-                $alertLevel = "Critico"
-            }
-            elseif ($percentUsed -ge 80) {
-                $alertLevel = "Advertencia"
-            }
-
-            $detailedDisks += [PSCustomObject]@{
-                ComputerName   = $disk.ComputerName
-                Name           = $disk.Name
-                Label          = $disk.Label
-                CapacityGB     = [math]::Round($disk.Size / 1GB, 2)
-                FreeGB         = [math]::Round($disk.Free / 1GB, 2)
-                UsedGB         = [math]::Round($disk.Used / 1GB, 2)
-                PercentUsed    = $percentUsed
-                IsMountPoint   = $isMountPoint
-                MountPointType = $mountPointInfo
-                AlertLevel     = $alertLevel
-                CheckDate      = Get-Date
-            }
-        }
-
-        Write-Host "   ✅ Información detallada de discos obtenida ($($detailedDisks.Count) unidades)" -ForegroundColor Green
-        return $detailedDisks
-
-    }
-    catch {
-        Write-Error "   ❌ Error obteniendo información de discos: $($_.Exception.Message)"
-        return @()
-    }
-}
-
-function Get-BackupJobStatus {
-    param([string]$SqlInstance, [int]$HoursBack = 24)
-
-    try {
-        Write-Host "   📊 Verificando estado de jobs de backup..." -ForegroundColor Yellow
-
-        # Obtener jobs de SQL Server Agent
-        $jobs = Get-DbaAgentJob -SqlInstance $SqlInstance -ErrorAction Stop |
-        Where-Object { $_.Name -like "*backup*" -or $_.Name -like "*Backup*" -or $_.Description -like "*backup*" }
-
-        $jobStatusReport = @()
-        $hasErrors = $false
-
-        foreach ($job in $jobs) {
-            # Obtener historial reciente del job
-            $jobHistory = Get-DbaAgentJobHistory -SqlInstance $SqlInstance -Job $job.Name -Since (Get-Date).AddHours(-$HoursBack) -ErrorAction SilentlyContinue
-
-            $lastRun = $jobHistory | Sort-Object RunDate -Descending | Select-Object -First 1
-            $failedRuns = $jobHistory | Where-Object { $_.Status -eq "Failed" }
-
-            $jobStatus = "Success"
-            $errorMessage = ""
-
-            if ($failedRuns.Count -gt 0) {
-                $jobStatus = "Failed"
-                $hasErrors = $true
-                $errorMessage = ($failedRuns | Select-Object -First 1).Message
-            }
-            elseif ($lastRun -and $lastRun.Status -eq "Failed") {
-                $jobStatus = "Failed"
-                $hasErrors = $true
-                $errorMessage = $lastRun.Message
-            }
-            elseif (-not $lastRun) {
-                $jobStatus = "Unknown"
-            }
-
-            $jobStatusReport += [PSCustomObject]@{
-                SqlInstance       = $SqlInstance
-                JobName           = $job.Name
-                JobEnabled        = $job.IsEnabled
-                LastRunDate       = if ($lastRun) { $lastRun.RunDate } else { "Nunca" }
-                LastRunStatus     = if ($lastRun) { $lastRun.Status } else { "Unknown" }
-                JobStatus         = $jobStatus
-                FailedRunsLast24h = $failedRuns.Count
-                ErrorMessage      = $errorMessage
-                CheckDate         = Get-Date
-            }
-        }
-
-        # Si no se encontraron jobs de backup, reportar
-        if ($jobs.Count -eq 0) {
-            $jobStatusReport += [PSCustomObject]@{
-                SqlInstance       = $SqlInstance
-                JobName           = "No se encontraron jobs de backup"
-                JobEnabled        = $false
-                LastRunDate       = "N/A"
-                LastRunStatus     = "Unknown"
-                JobStatus         = "Warning"
-                FailedRunsLast24h = 0
-                ErrorMessage      = "No se detectaron jobs con nombre o descripción relacionada a backup"
-                CheckDate         = Get-Date
-            }
-        }
-
-        Write-Host "   ✅ Estado de jobs de backup verificado ($($jobStatusReport.Count) jobs)" -ForegroundColor Green
-
-        return @{
-            JobStatusReport = $jobStatusReport
-            HasErrors       = $hasErrors
-        }
-
-    }
-    catch {
-        Write-Error "   ❌ Error verificando jobs de backup: $($_.Exception.Message)"
-        return @{
-            JobStatusReport = @([PSCustomObject]@{
-                    SqlInstance       = $SqlInstance
-                    JobName           = "Error"
-                    JobEnabled        = $false
-                    LastRunDate       = "N/A"
-                    LastRunStatus     = "Error"
-                    JobStatus         = "Error"
-                    FailedRunsLast24h = 0
-                    ErrorMessage      = $_.Exception.Message
-                    CheckDate         = Get-Date
-                })
-            HasErrors       = $true
-        }
-    }
-}
-
-function Send-DbaNotification {
+function Export-ServerInventory {
+    <#
+    .SYNOPSIS
+    Genera un inventario rápido del servidor SQL.
+    #>
     param(
-        [string]$Subject,
-        [string]$Body,
-        [string]$Type = "Warning"
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OutputPath = ".\reports\inventory_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
     )
 
     try {
-        # Configuración de notificaciones
-        $notificationConfig = @{
-            LogPath      = ".\reports\notifications.log"
-            EmailEnabled = $false
-            TeamsEnabled = $false
-        }
+        Write-Host "`n📋 GENERANDO INVENTARIO DEL SERVIDOR..." -ForegroundColor Cyan
 
-        # Log de notificación
-        $logEntry = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - [$Type] - $Subject"
-        Add-Content -Path $notificationConfig.LogPath -Value $logEntry
+        # Recolectar información básica
+        $serverInfo = Get-BasicServerInfo -SqlInstance $SqlInstance
+        $databases = Get-DatabaseList -SqlInstance $SqlInstance
+        $diskSpace = Get-ServerDiskSpace -SqlInstance $SqlInstance
 
-        # Mostrar notificación en consola
-        switch ($Type) {
-            "Error" {
-                Write-Host "   🚨 NOTIFICACIÓN - $Subject" -ForegroundColor Red
-                Write-Host "   📝 $Body" -ForegroundColor Red
-            }
-            "Warning" {
-                Write-Host "   ⚠️  NOTIFICACIÓN - $Subject" -ForegroundColor Yellow
-                Write-Host "   📝 $Body" -ForegroundColor Yellow
-            }
-            "Success" {
-                Write-Host "   ✅ NOTIFICACIÓN - $Subject" -ForegroundColor Green
-                Write-Host "   📝 $Body" -ForegroundColor Green
-            }
-            default {
-                Write-Host "   ℹ️  NOTIFICACIÓN - $Subject" -ForegroundColor White
-                Write-Host "   📝 $Body" -ForegroundColor White
+        # Crear inventario
+        $inventory = @{
+            GeneratedDate = Get-Date
+            SqlInstance   = $SqlInstance
+            ServerInfo    = $serverInfo
+            Databases     = $databases
+            DiskSpace     = $diskSpace
+            Summary       = @{
+                TotalDatabases = $databases.Count
+                TotalDisks     = $diskSpace.Count
+                ProductVersion = $serverInfo.ProductVersion
+                Edition        = $serverInfo.Edition
             }
         }
 
-        Write-Host "   ✅ Notificación registrada" -ForegroundColor Green
-        return $true
+        # Guardar a archivo JSON
+        $inventory | ConvertTo-Json -Depth 10 | Out-File -FilePath $OutputPath -Encoding UTF8
 
+        Write-Host "✅ Inventario generado exitosamente" -ForegroundColor Green
+        Write-Host "📁 Ubicación: $OutputPath" -ForegroundColor Yellow
+
+        # Mostrar resumen
+        Write-Host "`n📊 RESUMEN:" -ForegroundColor Cyan
+        Write-Host "   • Servidor: $($serverInfo.ServerName)" -ForegroundColor White
+        Write-Host "   • Versión: $($serverInfo.ProductVersion)" -ForegroundColor White
+        Write-Host "   • Edición: $($serverInfo.Edition)" -ForegroundColor White
+        Write-Host "   • Bases de datos: $($databases.Count)" -ForegroundColor White
+        Write-Host "   • Discos monitoreados: $($diskSpace.Count)" -ForegroundColor White
+
+        return $inventory
     }
     catch {
-        Write-Error "   ❌ Error enviando notificación: $($_.Exception.Message)"
-        return $false
+        Write-Error "❌ Error generando inventario: $($_.Exception.Message)"
+        return $null
     }
 }
 
-# Función para mostrar resumen de herramientas disponibles
-function Show-DbaToolsFunctions {
-    Write-Host "`n🛠️  FUNCIONES DBATOOLS DISPONIBLES:" -ForegroundColor Cyan
-    Write-Host "   • Test-SQLConnection" -ForegroundColor Yellow
-    Write-Host "   • Get-BasicServerInfo" -ForegroundColor Yellow
-    Write-Host "   • Get-DatabaseList" -ForegroundColor Yellow
-    Write-Host "   • Backup-DatabaseSimple" -ForegroundColor Yellow
-    Write-Host "   • Get-ServerSpace" -ForegroundColor Yellow
-    Write-Host "   • Test-DatabaseConnectivity" -ForegroundColor Yellow
-    Write-Host "   • Get-SQLServices" -ForegroundColor Yellow
-    Write-Host "   • Get-SQLServerVersionInfo" -ForegroundColor Green
-    Write-Host "   • Get-DetailedDiskSpace" -ForegroundColor Green
-    Write-Host "   • Get-BackupJobStatus" -ForegroundColor Green
-    Write-Host "   • Send-DbaNotification" -ForegroundColor Green
-    Write-Host ""
+# ============================================================================
+# SECCIÓN 6: FUNCIONES DE INTEGRACIÓN CON DATA-COLLECTOR
+# ============================================================================
+
+function Invoke-QuickHealthCheck {
+    <#
+    .SYNOPSIS
+    Realiza un chequeo rápido de salud del servidor.
+    .DESCRIPTION
+    Función de conveniencia que ejecuta pruebas básicas de salud.
+    Para análisis completo, usar Get-CompleteDatabaseInfo del data-collector.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SqlInstance,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DatabaseName = "master"
+    )
+
+    try {
+        Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+        Write-Host "║  CHEQUEO RÁPIDO DE SALUD                                  ║" -ForegroundColor Cyan
+        Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+        $healthStatus = @{
+            SqlInstance = $SqlInstance
+            CheckDate   = Get-Date
+            Tests       = @{}
+        }
+
+        # 1. Test de conexión
+        Write-Host "`n1️⃣  Prueba de conexión..." -ForegroundColor Yellow
+        $connectionTest = Test-SQLConnection -SqlInstance $SqlInstance
+        $healthStatus.Tests.Connection = $connectionTest
+
+        if (-not $connectionTest.Success) {
+            Write-Host "   ❌ FALLO: No se pudo conectar al servidor" -ForegroundColor Red
+            return $healthStatus
+        }
+
+        # 2. Información del servidor
+        Write-Host "`n2️⃣  Información del servidor..." -ForegroundColor Yellow
+        $serverInfo = Get-BasicServerInfo -SqlInstance $SqlInstance
+        $healthStatus.Tests.ServerInfo = if ($serverInfo) { "OK" } else { "FAILED" }
+
+        if ($serverInfo) {
+            Write-Host "   ✅ Servidor: $($serverInfo.ServerName)" -ForegroundColor Green
+            Write-Host "   ✅ Versión: $($serverInfo.ProductVersion)" -ForegroundColor Green
+            Write-Host "   ✅ Edición: $($serverInfo.Edition)" -ForegroundColor Green
+        }
+
+        # 3. Espacio en disco
+        Write-Host "`n3️⃣  Espacio en disco..." -ForegroundColor Yellow
+        $diskSpace = Get-ServerDiskSpace -SqlInstance $SqlInstance
+        $healthStatus.Tests.DiskSpace = @{
+            TotalDisks    = $diskSpace.Count
+            CriticalDisks = ($diskSpace | Where-Object { $_.PercentFree -lt 10 }).Count
+            WarningDisks  = ($diskSpace | Where-Object { $_.PercentFree -lt 20 -and $_.PercentFree -ge 10 }).Count
+        }
+
+        $criticalDisks = $diskSpace | Where-Object { $_.PercentFree -lt 10 }
+        if ($criticalDisks) {
+            Write-Host "   🚨 CRÍTICO: $($criticalDisks.Count) disco(s) con menos del 10% libre" -ForegroundColor Red
+            foreach ($disk in $criticalDisks) {
+                Write-Host "      • $($disk.DiskName): $($disk.PercentFree)% libre" -ForegroundColor Red
+            }
+        }
+        else {
+            Write-Host "   ✅ Espacio en disco: OK" -ForegroundColor Green
+        }
+
+        # 4. Bases de datos
+        Write-Host "`n4️⃣  Bases de datos..." -ForegroundColor Yellow
+        $databases = Get-DatabaseList -SqlInstance $SqlInstance
+        $offlineDbs = $databases | Where-Object { $_.Status -ne 'ONLINE' }
+        $healthStatus.Tests.Databases = @{
+            Total   = $databases.Count
+            Online  = ($databases | Where-Object { $_.Status -eq 'ONLINE' }).Count
+            Offline = $offlineDbs.Count
+        }
+
+        if ($offlineDbs) {
+            Write-Host "   ⚠️  ADVERTENCIA: $($offlineDbs.Count) base(s) de datos no están ONLINE" -ForegroundColor Yellow
+            foreach ($db in $offlineDbs) {
+                Write-Host "      • $($db.DatabaseName): $($db.Status)" -ForegroundColor Yellow
+            }
+        }
+        else {
+            Write-Host "   ✅ Todas las bases de datos están ONLINE ($($databases.Count) bases)" -ForegroundColor Green
+        }
+
+        # Resumen final
+        Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+        Write-Host "║  RESULTADO DEL CHEQUEO DE SALUD                           ║" -ForegroundColor Cyan
+        Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+        $overallStatus = "SALUDABLE"
+        $statusColor = "Green"
+
+        if ($healthStatus.Tests.DiskSpace.CriticalDisks -gt 0) {
+            $overallStatus = "CRÍTICO"
+            $statusColor = "Red"
+        }
+        elseif ($healthStatus.Tests.DiskSpace.WarningDisks -gt 0 -or $healthStatus.Tests.Databases.Offline -gt 0) {
+            $overallStatus = "ADVERTENCIA"
+            $statusColor = "Yellow"
+        }
+
+        Write-Host "`n   Estado General: $overallStatus" -ForegroundColor $statusColor
+        Write-Host ""
+
+        return $healthStatus
+    }
+    catch {
+        Write-Error "❌ Error en chequeo de salud: $($_.Exception.Message)"
+        return $null
+    }
 }
+
+# ============================================================================
+# EXPORTAR FUNCIONES (opcional para módulos)
+# ============================================================================
+
+<#
+Export-ModuleMember -Function @(
+    'Test-SQLConnection',
+    'Test-DatabaseConnectivity',
+    'Get-BasicServerInfo',
+    'Get-DatabaseList',
+    'Get-SQLServices',
+    'Get-ServerDiskSpace',
+    'Backup-DatabaseSimple',
+    'Show-AvailableFunctions',
+    'Export-ServerInventory',
+    'Invoke-QuickHealthCheck'
+)
+#>
+
+# ============================================================================
+# ALIAS PARA COMPATIBILIDAD
+# ============================================================================
+
+# Crear alias para funciones renombradas (compatibilidad con código antiguo)
+Set-Alias -Name Get-ServerSpace -Value Get-ServerDiskSpace -ErrorAction SilentlyContinue
+Set-Alias -Name Show-DbaToolsFunctions -Value Show-AvailableFunctions -ErrorAction SilentlyContinue
